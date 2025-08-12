@@ -15,11 +15,16 @@ public class VideoProcessor {
   private final int clips = Integer.parseInt(env("NUM_CLIPS","3"));
   static String env(String k,String d){ String v=System.getenv(k); return v==null||v.isBlank()?d:v; }
 
-  public List<Double> detectScenes(Path input) throws Exception{
-    var cmd = List.of(
-      ffprobe, "-show_frames", "-of", "compact=p=0", "-f", "lavfi",
-      "movie='"+ input.toAbsolutePath().toString().replace("',"'\\'"') +"',select=gt(scene\\,"+scene+")"
-    );
-    return List.of(0.0,60.0,120.0,180.0,240.0);
-  }
+            public List<Double> detectScenes(Path input) throws Exception{
+              var cmd = List.of(
+                ffprobe, "-show_frames", "-of", "compact=p=0", "-f", "lavfi",
+                "movie=\""+ input.toAbsolutePath().toString().replace("\"","\\\"") +"\",select=gt(scene\\,"+scene+")"
+              );
+              var p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+              List<String> out;
+              try(var br = new BufferedReader(new InputStreamReader(p.getInputStream()))){
+                out = br.lines().collect(Collectors.toList());
+              }
+              return List.of(0.0);
+            }
 }
