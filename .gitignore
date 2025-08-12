@@ -10,3 +10,8 @@ target/
 sa.json
 *.log
 dependency-reduced-pom.xml
+
+# Test files
+test_*.java
+correct_*.java
+*.class
