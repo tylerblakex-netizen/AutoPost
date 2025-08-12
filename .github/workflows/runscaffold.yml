@@ -1,0 +1,27 @@
+name: Run scaffold & clean
+on: { workflow_dispatch: {} }
+permissions: { contents: write }
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run create-java.sh
+        run: bash create-java.sh
+
+      - name: Commit generated files
+        run: |
+          git config user.name "autopost-bot"
+          git config user.email "autopost-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "scaffold: java full" || echo "no changes"
+
+      - name: Delete bootstrap helpers (including this workflow)
+        run: |
+          git rm -f create-java.sh || true
+          git rm -f .github/workflows/scaffold.yml || true
+          git rm -f .github/workflows/run-scaffold.yml || true
+          git commit -m "chore: remove bootstrap helpers" || echo "no cleanup needed"
+          git push
