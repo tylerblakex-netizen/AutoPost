@@ -57,6 +57,8 @@ AutoPost is an automated video processing and social media posting application t
    java -jar target/autopost.jar analyze
    ```
 
+   **Note:** On first run without a `best_slots.json` file, the application will only process videos at 9 AM London time. Use the `analyze` command to determine your optimal posting schedule based on past tweet performance.
+
 ## Configuration Options
 
 All configuration is done via environment variables:
