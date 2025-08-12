@@ -9,3 +9,4 @@ target/
 .env
 sa.json
 *.log
+dependency-reduced-pom.xml
