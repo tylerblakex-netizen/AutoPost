@@ -18,6 +18,7 @@ AutoPost is an automated video processing and social media posting application t
 - **Smart Timing**: Analyzes posting performance to determine best posting times
 - **Multiple Outputs**: Supports both X/Twitter posting and webhook delivery
 - **File Management**: Automatically organizes processed files
+- **Dual Mode**: Can run as CLI application or Spring Boot web server with REST API
 
 ## Quick Start
 
@@ -55,6 +56,9 @@ AutoPost is an automated video processing and social media posting application t
    
    # Analyze posting times to determine optimal schedule
    java -jar target/autopost.jar analyze
+   
+   # Run as Spring Boot web server with REST API endpoints
+   java -jar target/autopost.jar server
    ```
 
 ## Configuration Options
