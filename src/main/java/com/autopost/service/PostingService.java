@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import twitter4j.*;
 import twitter4j.conf.ConfigurationBuilder;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.io.*;
 import java.nio.file.*;
 import java.time.*;
