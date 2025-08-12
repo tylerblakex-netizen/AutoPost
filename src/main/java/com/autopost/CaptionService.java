@@ -1,5 +1,5 @@
 package com.autopost;
-import com.fasterxml.jackson.databind.*; import okhttp3.*; import java.util.*; import java.util.regex.*;
+import com.fasterxml.jackson.databind.*; import com.fasterxml.jackson.databind.node.*; import okhttp3.*; import java.util.*; import java.util.regex.*;
 public class CaptionService {
   public record Caption(String caption, List<String> hashtags) {}
   private final String apiKey, model; private static final ObjectMapper M=new ObjectMapper(); private static final OkHttpClient HTTP=new OkHttpClient();

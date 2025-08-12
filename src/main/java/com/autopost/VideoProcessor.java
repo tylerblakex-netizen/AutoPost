@@ -10,7 +10,7 @@ public class VideoProcessor {
   static String env(String k,String d){ var v=System.getenv(k); return v==null||v.isBlank()?d:v; }
 
   public List<Double> detectScenes(Path input) throws Exception{
-    var cmd=List.of(ffprobe,"-show_frames","-of","compact=p=0","-f","lavfi","movie='"+input.toAbsolutePath().toString().replace(\"'\",\"'\\\\''\")+"',select=gt(scene\\,"+scene+")");
+    var cmd=List.of(ffprobe,"-show_frames","-of","compact=p=0","-f","lavfi","movie='"+input.toAbsolutePath().toString().replace("'","\\'")+"',select=gt(scene\\,"+scene+")");
     var p=new ProcessBuilder(cmd).redirectErrorStream(true).start(); List<String> out;
     try(var br=new BufferedReader(new InputStreamReader(p.getInputStream()))){ out=br.lines().collect(Collectors.toList()); } p.waitFor();
     List<Double> pts=new ArrayList<>(); for(String line: out){ int i=line.indexOf("pkt_pts_time="); if(i>=0){ int j=line.indexOf('|',i); String v=(j>i? line.substring(i+13,j): line.substring(i+13)); try{ pts.add(Double.parseDouble(v)); }catch(Exception ignore){} } }

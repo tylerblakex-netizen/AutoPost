@@ -6,7 +6,11 @@ public class TwitterService {
   private static boolean e(String s){ return s==null||s.isBlank(); }
   public String tweetVideo(String text, Path media) throws TwitterException {
     Twitter t=TwitterFactory.getSingleton(); t.setOAuthConsumer(cfg.twApiKey(), cfg.twApiSecret()); t.setOAuthAccessToken(new AccessToken(cfg.twAccessToken(), cfg.twAccessSecret()));
-    UploadedMedia m=t.uploadMediaChunked(media.toFile()); StatusUpdate up=new StatusUpdate(text); up.setMediaIds(m.getMediaId()); Status s=t.updateStatus(up);
-    return "https://x.com/"+s.getUser().getScreenName()+"/status/"+s.getId();
+    try (java.io.FileInputStream fis = new java.io.FileInputStream(media.toFile())) {
+      UploadedMedia m=t.uploadMediaChunked(media.getFileName().toString(), fis); StatusUpdate up=new StatusUpdate(text); up.setMediaIds(m.getMediaId()); Status s=t.updateStatus(up);
+      return "https://x.com/"+s.getUser().getScreenName()+"/status/"+s.getId();
+    } catch (java.io.IOException e) {
+      throw new TwitterException("Failed to read media file", e);
+    }
   }
 }
