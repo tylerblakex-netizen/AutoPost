@@ -1,0 +1,43 @@
+name: Check environment variables
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-env:
+    # Skip on forked PRs where repository secrets are unavailable
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make check_env.sh executable
+        run: chmod +x .github/scripts/check_env.sh
+
+      - name: Check required and optional secrets
+        shell: bash
+        env:
+          # Required for normal runs
+          REQUIRED_SECRETS: "OPENAI_API_KEY,GOOGLE_SERVICE_ACCOUNT_JSON,RAW_FOLDER_ID,EDITS_FOLDER_ID"
+          # Optional (Discord webhook + X/Twitter creds)
+          OPTIONAL_SECRETS: "WEBHOOK_URL,TWITTER_API_KEY,TWITTER_API_SECRET,TWITTER_ACCESS_TOKEN,TWITTER_ACCESS_SECRET"
+          # Map from repo/org secrets
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID }}
+          EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
+        run: .github/scripts/check_env.sh
