@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter
+    xmlns="https://github.com/spotbugs/filter/3.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/3.1.0/spotbugs/etc/findbugsfilter.xsd">
+
+    <!-- Exclude low-priority issues in generated code or configuration -->
+    <Match>
+        <Class name="~.*\.config\..*"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    
+    <!-- Exclude certain patterns that are acceptable in this application -->
+    <Match>
+        <Bug pattern="DM_EXIT"/>
+    </Match>
+    
+    <!-- Exclude issues with Spring Boot auto-configuration -->
+    <Match>
+        <Class name="~.*Application"/>
+        <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>
+    </Match>
+    
+    <!-- Exclude issues with record classes -->
+    <Match>
+        <Class name="~.*Record"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    
+    <!-- Exclude certain patterns in utility classes -->
+    <Match>
+        <Class name="~.*Utils?"/>
+        <Method name="~.*"/>
+        <Bug pattern="UC_USELESS_CONDITION"/>
+    </Match>
+</FindBugsFilter>
