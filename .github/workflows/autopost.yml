@@ -17,6 +17,9 @@ name: AutoPost & Analyze
         description: "true = bypass time gating"
         required: false
         default: "false"
+  repository_dispatch:
+    # External agents can trigger via repository_dispatch events
+    types: [autopost_run, autopost_analyze]
 
 permissions:
   contents: write
@@ -40,8 +43,28 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
-          FORCE="${{ github.event.inputs.force || 'false' }}"
-          REQ_MODE="${{ github.event.inputs.mode || 'run' }}"
+          # Handle repository_dispatch events by mapping to existing variables
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            case "${{ github.event.action }}" in
+              "autopost_analyze")
+                REQ_MODE="analyze"
+                FORCE="${{ github.event.client_payload.force || 'false' }}"
+                ;;
+              "autopost_run")
+                REQ_MODE="run"
+                FORCE="${{ github.event.client_payload.force || 'false' }}"
+                ;;
+              *)
+                REQ_MODE="run"
+                FORCE="false"
+                ;;
+            esac
+          else
+            # Handle workflow_dispatch and schedule events
+            FORCE="${{ github.event.inputs.force || 'false' }}"
+            REQ_MODE="${{ github.event.inputs.mode || 'run' }}"
+          fi
+
           DOW=$(date -u +%u)   # 1=Mon
           # HH:MM (UTC)
           HM=$(date -u +%H:%M)
@@ -121,9 +144,32 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
-          FORCE="${{ github.event.inputs.force || 'false' }}"
-          REQ_MODE="${{ github.event.inputs.mode || 'run' }}"
-          DRY="${{ github.event.inputs.dry_run || 'false' }}"
+          # Handle repository_dispatch events by mapping to existing variables
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            case "${{ github.event.action }}" in
+              "autopost_run")
+                REQ_MODE="run"
+                FORCE="${{ github.event.client_payload.force || 'false' }}"
+                DRY="${{ github.event.client_payload.dry_run || 'false' }}"
+                ;;
+              "autopost_analyze")
+                REQ_MODE="analyze"
+                FORCE="${{ github.event.client_payload.force || 'false' }}"
+                DRY="${{ github.event.client_payload.dry_run || 'false' }}"
+                ;;
+              *)
+                REQ_MODE="run"
+                FORCE="false"
+                DRY="false"
+                ;;
+            esac
+          else
+            # Handle workflow_dispatch and schedule events
+            FORCE="${{ github.event.inputs.force || 'false' }}"
+            REQ_MODE="${{ github.event.inputs.mode || 'run' }}"
+            DRY="${{ github.event.inputs.dry_run || 'false' }}"
+          fi
+
           HM=$(date -u +%H:%M)
           TARGET="08:00" # 08:00 UTC ≈ 09:00 London winter
           SHOULD="false"
