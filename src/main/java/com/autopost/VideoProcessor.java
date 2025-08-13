@@ -1,6 +1,9 @@
 package com.autopost;
 import java.io.*; import java.nio.file.*; import java.util.*; import java.util.stream.Collectors;
+import java.util.logging.Logger;
+
 public class VideoProcessor {
+  private static final Logger log = Logger.getLogger(VideoProcessor.class.getName());
   private final String ffmpeg=env("FFMPEG_PATH","ffmpeg"), ffprobe=env("FFPROBE_PATH","ffprobe");
   private final Path tmp=Paths.get(env("FFMPEG_TEMP_DIR", System.getProperty("java.io.tmpdir")));
   private final double scene=Double.parseDouble(env("SCENE_THRESHOLD","0.4"));
@@ -8,6 +11,16 @@ public class VideoProcessor {
   private final int teaser= Integer.parseInt(env("TEASER_DURATION_SEC","180"));
   private final int clips = Integer.parseInt(env("NUM_CLIPS","3"));
   static String env(String k,String d){ var v=System.getenv(k); return v==null||v.isBlank()?d:v; }
+
+  public VideoProcessor() {
+    // Check if dependencies are available
+    if (!DependencyChecker.checkFFmpeg()) {
+      log.warning("FFmpeg not found at: " + ffmpeg);
+    }
+    if (!DependencyChecker.checkFFprobe()) {
+      log.warning("FFprobe not found at: " + ffprobe);
+    }
+  }
 
   public List<Double> detectScenes(Path input) throws Exception{
     var cmd=List.of(ffprobe,"-show_frames","-of","compact=p=0","-f","lavfi","movie='"+input.toAbsolutePath().toString().replace("'","\\'")+"',select=gt(scene\\,"+scene+")");
@@ -29,5 +42,19 @@ public class VideoProcessor {
     for(int i=0;i<n;i++){ double s=t.get(i); double d=Math.min(clip,(i+1<t.size()? t.get(i+1)-s: clip)); outs.add(cut(in,s,d,"clip_"+(i+1)+".mp4")); }
     outs.add(cut(in,t.get(0),teaser,"teaser.mp4")); return outs;
   }
-  private void run(java.util.List<String> cmd) throws Exception{ var p=new ProcessBuilder(cmd).redirectErrorStream(true).start(); try(var br=new BufferedReader(new InputStreamReader(p.getInputStream()))){ while(br.readLine()!=null){} } int c=p.waitFor(); if(c!=0) throw new RuntimeException("ffmpeg/ffprobe exited "+c); }
+  private void run(java.util.List<String> cmd) throws Exception{ 
+    log.info("Running command: " + String.join(" ", cmd));
+    var p=new ProcessBuilder(cmd).redirectErrorStream(true).start(); 
+    try(var br=new BufferedReader(new InputStreamReader(p.getInputStream()))){ 
+      String line;
+      while((line = br.readLine()) != null) {
+        log.fine("ffmpeg: " + line);
+      }
+    } 
+    int c=p.waitFor(); 
+    if(c!=0) {
+      log.severe("ffmpeg/ffprobe exited with code " + c);
+      throw new RuntimeException("ffmpeg/ffprobe exited " + c); 
+    }
+  }
 }

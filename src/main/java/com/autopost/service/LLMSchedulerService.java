@@ -18,11 +18,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.logging.Logger;
 
 @Service
 public class LLMSchedulerService {
     
-    @Value("${openai.api.key}")
+    private static final Logger log = Logger.getLogger(LLMSchedulerService.class.getName());
+    
+    @Value("${openai.api.key:}")
     private String openAiApiKey;
     
     private final RestTemplate restTemplate = new RestTemplate();
@@ -35,18 +38,18 @@ public class LLMSchedulerService {
     // Run daily at 00:05 London time to plan today's post
     @Scheduled(cron = "0 5 0 * * *", zone = "Europe/London")
     public void planDailyPost() throws IOException {
-        System.out.println("Planning today's post time with LLM...");
+        log.info("Planning today's post time with LLM...");
         
         // Check if OpenAI API key is available
         if (openAiApiKey == null || openAiApiKey.trim().isEmpty()) {
-            System.out.println("OpenAI API key not configured, using fallback scheduling.");
+            log.info("OpenAI API key not configured, using fallback scheduling.");
             scheduleWithFallback();
             return;
         }
         
         // Check if we already have a time for today
         if (hasPlannedTimeForToday()) {
-            System.out.println("Already have a planned time for today, skipping.");
+            log.info("Already have a planned time for today, skipping.");
             return;
         }
         
@@ -119,7 +122,7 @@ public class LLMSchedulerService {
             
             return parseOpenAIResponse(response.getBody(), avoidMinutes);
         } catch (Exception e) {
-            System.err.println("Error calling OpenAI: " + e.getMessage());
+            log.warning("Error calling OpenAI: " + e.getMessage());
             // Fallback to random time if OpenAI fails
             return generateFallbackTime(avoidMinutes);
         }
@@ -245,12 +248,12 @@ public class LLMSchedulerService {
         nextRun.put("planned_at", ZonedDateTime.now(ZoneId.of("Europe/London")).toString());
         
         Files.writeString(nextRunPath, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(nextRun));
-        System.out.println("Saved next run time: " + postTime.timestamp);
+        log.info("Saved next run time: " + postTime.timestamp);
     }
     
     private void schedulePost(ZonedDateTime timestamp) {
         // This will be handled by the PostingService
-        System.out.println("Post scheduled for: " + timestamp);
+        log.info("Post scheduled for: " + timestamp);
     }
     
     static class PostTime {
