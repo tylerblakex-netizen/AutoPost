@@ -25,6 +25,9 @@ public class LLMSchedulerService {
     @Value("${openai.api.key}")
     private String openAiApiKey;
     
+    @Value("${auto.post.cron:0 0 18 * * *}")
+    private String autoPostCron;
+    
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Path statePath = Paths.get("./state");
@@ -32,10 +35,10 @@ public class LLMSchedulerService {
     private final Path postedPath = statePath.resolve("posted");
     private final Path historyPath = statePath.resolve("post_history.json");
     
-    // Run daily at 00:05 London time to plan today's post
-    @Scheduled(cron = "0 5 0 * * *", zone = "Europe/London")
+    // Run daily using UTC timezone for cron evaluation as specified by AUTO_POST_CRON
+    @Scheduled(cron = "${auto.post.cron:0 0 18 * * *}", zone = "UTC")
     public void planDailyPost() throws IOException {
-        System.out.println("Planning today's post time with LLM...");
+        System.out.println("Planning today's post time with LLM (scheduler runs on UTC, posting logic uses London time)...");
         
         // Check if OpenAI API key is available
         if (openAiApiKey == null || openAiApiKey.trim().isEmpty()) {
@@ -250,7 +253,7 @@ public class LLMSchedulerService {
     
     private void schedulePost(ZonedDateTime timestamp) {
         // This will be handled by the PostingService
-        System.out.println("Post scheduled for: " + timestamp);
+        System.out.println("Post scheduled for: " + timestamp + " (business logic uses London time)");
     }
     
     static class PostTime {
