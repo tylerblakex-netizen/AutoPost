@@ -108,6 +108,15 @@ mvn package       # Build the application
 
 The built JAR will be available at `target/autopost.jar`.
 
+## Scripts
+
+### Issue Management
+
+- `create-issues.sh` - One-shot script to create GitHub issues for project management
+  - Run `./create-issues.sh --help` for usage information
+  - Supports dry-run mode: `./create-issues.sh --dry-run`
+  - See [CREATE_ISSUES.md](CREATE_ISSUES.md) for detailed documentation
+
 ## Automation
 
 This repository uses a consolidated GitHub Actions workflow:
