@@ -32,8 +32,8 @@ public class LLMSchedulerService {
     private final Path postedPath = statePath.resolve("posted");
     private final Path historyPath = statePath.resolve("post_history.json");
     
-    // Run daily at 00:05 London time to plan today's post
-    @Scheduled(cron = "0 5 0 * * *", zone = "Europe/London")
+    // Run daily using configurable cron expression to plan today's post
+    @Scheduled(cron = "${autopost.cron}", zone = "Europe/London")
     public void planDailyPost() throws IOException {
         System.out.println("Planning today's post time with LLM...");
         

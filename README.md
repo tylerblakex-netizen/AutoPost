@@ -79,6 +79,9 @@ All configuration is done via environment variables:
 - `TWITTER_API_KEY`, `TWITTER_API_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_SECRET` - X/Twitter credentials
 - `WEBHOOK_URL` - Alternative webhook endpoint for posting
 
+### Scheduling
+- `AUTO_POST_CRON` - Cron expression for automated posting schedule (default: "0 5 0 * * *" - daily at 00:05 UTC)
+
 ### Video Processing
 - `FFMPEG_PATH` - Path to ffmpeg binary (default: ffmpeg)
 - `FFPROBE_PATH` - Path to ffprobe binary (default: ffprobe) 
