@@ -1,10 +1,12 @@
 package com.autopost.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,32 +21,38 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
+import java.util.logging.Logger;
 
 @Service
 public class PostingService {
     
-    @Value("${google.service.account.json}")
+    private static final Logger log = Logger.getLogger(PostingService.class.getName());
+    
+    @Value("${google.service.account.json:}")
     private String serviceAccountPath;
     
-    @Value("${raw.folder.id}")
+    @Value("${google.service.account.inline:}")
+    private String serviceAccountInline;
+    
+    @Value("${raw.folder.id:}")
     private String rawFolderId;
     
-    @Value("${edits.folder.id}")
+    @Value("${edits.folder.id:}")
     private String editsFolderId;
     
-    @Value("${twitter.api.key}")
+    @Value("${twitter.api.key:}")
     private String twitterApiKey;
     
-    @Value("${twitter.api.secret}")
+    @Value("${twitter.api.secret:}")
     private String twitterApiSecret;
     
-    @Value("${twitter.access.token}")
+    @Value("${twitter.access.token:}")
     private String twitterAccessToken;
     
-    @Value("${twitter.access.secret}")
+    @Value("${twitter.access.secret:}")
     private String twitterAccessSecret;
     
-    @Value("${openai.api.key}")
+    @Value("${openai.api.key:}")
     private String openAiApiKey;
     
     private final TaskScheduler taskScheduler;
@@ -66,7 +74,7 @@ public class PostingService {
         if (hasTwitterCredentials()) {
             try {
                 ConfigurationBuilder cb = new ConfigurationBuilder();
-                cb.setDebugEnabled(true)
+                cb.setDebugEnabled(false)
                     .setOAuthConsumerKey(twitterApiKey)
                     .setOAuthConsumerSecret(twitterApiSecret)
                     .setOAuthAccessToken(twitterAccessToken)
@@ -74,19 +82,27 @@ public class PostingService {
                 
                 TwitterFactory tf = new TwitterFactory(cb.build());
                 twitter = tf.getInstance();
-                System.out.println("Twitter service initialized successfully");
+                log.info("Twitter service initialized successfully");
             } catch (Exception e) {
-                System.err.println("Failed to initialize Twitter service: " + e.getMessage());
+                log.warning("Failed to initialize Twitter service: " + e.getMessage());
             }
         } else {
-            System.out.println("Twitter credentials not configured, Twitter service disabled");
+            log.info("Twitter credentials not configured, Twitter service disabled");
         }
         
         // Initialize Google Drive if credentials are available
         if (hasGoogleCredentials()) {
             try {
-                GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(serviceAccountPath))
-                    .createScoped(Arrays.asList("https://www.googleapis.com/auth/drive.readonly"));
+                GoogleCredentials credentials;
+                if (hasInlineCredentials()) {
+                    credentials = ServiceAccountCredentials.fromStream(
+                        new ByteArrayInputStream(serviceAccountInline.getBytes()))
+                        .createScoped(Arrays.asList("https://www.googleapis.com/auth/drive"));
+                } else {
+                    credentials = ServiceAccountCredentials.fromStream(
+                        new FileInputStream(serviceAccountPath))
+                        .createScoped(Arrays.asList("https://www.googleapis.com/auth/drive"));
+                }
                 
                 driveService = new Drive.Builder(
                     GoogleNetHttpTransport.newTrustedTransport(),
@@ -94,12 +110,12 @@ public class PostingService {
                     new HttpCredentialsAdapter(credentials))
                     .setApplicationName("AutoPost")
                     .build();
-                System.out.println("Google Drive service initialized successfully");
+                log.info("Google Drive service initialized successfully");
             } catch (Exception e) {
-                System.err.println("Failed to initialize Google Drive service: " + e.getMessage());
+                log.warning("Failed to initialize Google Drive service: " + e.getMessage());
             }
         } else {
-            System.out.println("Google credentials not configured, Google Drive service disabled");
+            log.info("Google credentials not configured, Google Drive service disabled");
         }
         
         // Check for existing scheduled post
@@ -114,9 +130,17 @@ public class PostingService {
     }
     
     private boolean hasGoogleCredentials() {
-        return serviceAccountPath != null && !serviceAccountPath.trim().isEmpty() &&
+        return (hasInlineCredentials() || hasFileCredentials()) &&
                rawFolderId != null && !rawFolderId.trim().isEmpty() &&
-               editsFolderId != null && !editsFolderId.trim().isEmpty() &&
+               editsFolderId != null && !editsFolderId.trim().isEmpty();
+    }
+    
+    private boolean hasInlineCredentials() {
+        return serviceAccountInline != null && !serviceAccountInline.trim().isEmpty();
+    }
+    
+    private boolean hasFileCredentials() {
+        return serviceAccountPath != null && !serviceAccountPath.trim().isEmpty() &&
                new File(serviceAccountPath).exists();
     }
     
@@ -127,15 +151,21 @@ public class PostingService {
             return;
         }
         
-        String content = Files.readString(nextRunPath);
-        Map<String, Object> nextRun = new com.fasterxml.jackson.databind.ObjectMapper().readValue(content, Map.class);
-        
-        ZonedDateTime scheduledTime = ZonedDateTime.parse((String) nextRun.get("timestamp"));
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/London"));
-        
-        // Check if it's time to post (within 1 minute window)
-        if (now.isAfter(scheduledTime) && now.isBefore(scheduledTime.plusMinutes(1))) {
-            executePost();
+        try {
+            String content = Files.readString(nextRunPath);
+            ObjectMapper mapper = new ObjectMapper();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> nextRun = mapper.readValue(content, Map.class);
+            
+            ZonedDateTime scheduledTime = ZonedDateTime.parse((String) nextRun.get("timestamp"));
+            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/London"));
+            
+            // Check if it's time to post (within 1 minute window)
+            if (now.isAfter(scheduledTime) && now.isBefore(scheduledTime.plusMinutes(1))) {
+                executePost();
+            }
+        } catch (Exception e) {
+            log.warning("Error checking scheduled post: " + e.getMessage());
         }
     }
     
@@ -145,25 +175,25 @@ public class PostingService {
         
         // Check if already posted today
         if (Files.exists(todayMarker)) {
-            System.out.println("Already posted today, skipping.");
+            log.info("Already posted today, skipping.");
             return;
         }
         
         // Check if services are available
         if (driveService == null) {
-            System.out.println("Google Drive service not available, cannot download videos.");
+            log.warning("Google Drive service not available, cannot download videos.");
             return;
         }
         
         if (twitter == null) {
-            System.out.println("Twitter service not available, cannot post.");
+            log.warning("Twitter service not available, cannot post.");
             return;
         }
         
         // Check for RAW video
         File rawVideo = downloadLatestRawVideo();
         if (rawVideo == null) {
-            System.out.println("No RAW video available, skipping post.");
+            log.info("No RAW video available, skipping post.");
             return;
         }
         
@@ -188,9 +218,13 @@ public class PostingService {
             // Log success
             logPostSuccess(today, caption);
             
+        } catch (Exception e) {
+            log.warning("Error during post execution: " + e.getMessage());
         } finally {
             // Cleanup temporary files
-            rawVideo.delete();
+            if (rawVideo.exists()) {
+                rawVideo.delete();
+            }
         }
     }
     
@@ -219,7 +253,7 @@ public class PostingService {
             return tempFile;
             
         } catch (Exception e) {
-            System.err.println("Error downloading from Drive: " + e.getMessage());
+            log.warning("Error downloading from Drive: " + e.getMessage());
             return null;
         }
     }
@@ -309,13 +343,13 @@ public class PostingService {
         status.setMediaIds(mediaIds);
         
         twitter.updateStatus(status);
-        System.out.println("Successfully posted to Twitter!");
+        log.info("Successfully posted to Twitter!");
     }
     
     private void loadScheduledPost() throws IOException {
         if (Files.exists(nextRunPath)) {
             String content = Files.readString(nextRunPath);
-            System.out.println("Loaded scheduled post: " + content);
+            log.info("Loaded scheduled post: " + content);
         }
     }
     
