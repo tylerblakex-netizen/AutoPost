@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           EVENT="${{ github.event_name }}"
-            TYPE="${{ github.event.action }}"
+          TYPE="${{ github.event.action }}"
           WF_ACTION="${{ github.event.inputs.action || 'autopost' }}"
           MODE="run"
           if [ "$EVENT" = "repository_dispatch" ]; then
