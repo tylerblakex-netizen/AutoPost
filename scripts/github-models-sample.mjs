@@ -1,33 +1,38 @@
 import OpenAI from "openai";
 
-const token = process.env.GITHUB_TOKEN;
-const endpoint = "https://models.github.ai/inference";
+// Require TOKEN_GITHUB (no fallbacks to avoid confusion)
+const token = process.env.TOKEN_GITHUB;
+
+// Allow endpoint override; default to GitHub Models inference API
+const endpoint = process.env.MODELS_BASE_URL || "https://models.github.ai/inference";
 const model = "openai/gpt-4.1";
 
 async function main() {
   if (!token) {
     console.error(
-      "Missing GITHUB_TOKEN environment variable. In Codespaces, add it as a Codespaces secret, grant it access to this repo, then stop & restart the codespace."
+      "❌ Missing token. Set TOKEN_GITHUB as an environment variable (e.g., export TOKEN_GITHUB=gho_xxx)"
     );
     process.exit(1);
   }
 
-  const client = new OpenAI({ baseURL: endpoint, apiKey: token, timeout: 15000 });
+  const client = new OpenAI({
+    baseURL: endpoint,
+    apiKey: token,
+  });
 
   const response = await client.chat.completions.create({
     model,
     messages: [
       { role: "system", content: "You are a helpful assistant." },
-      { role: "user", content: "What is the capital of France?" },
+      { role: "user", content: "Say hello, then tell me today's vibe in 5 words." },
     ],
-    temperature: 1.0,
-    top_p: 1.0,
+    temperature: 0.7,
   });
 
   console.log(response.choices?.[0]?.message?.content ?? "");
 }
 
 main().catch((err) => {
-  console.error("Sample encountered an error:", err?.message || err);
+  console.error("❌ Request failed:", err?.message || err);
   process.exit(1);
 });
