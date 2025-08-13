@@ -79,7 +79,7 @@ twitter_vars=("TWITTER_API_KEY" "TWITTER_API_SECRET" "TWITTER_ACCESS_TOKEN" "TWI
 twitter_count=0
 for var in "${twitter_vars[@]}"; do
   if [[ -n "${!var:-}" ]]; then
-    ((twitter_count++))
+    twitter_count=$((twitter_count + 1))
   fi
 done
 
