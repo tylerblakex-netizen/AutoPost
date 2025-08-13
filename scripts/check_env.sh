@@ -3,8 +3,10 @@ set -euo pipefail
 
 missing=0
 
-ok(){ printf 'OK      %s\n' "$1"; }
-miss(){ printf 'MISSING %s\n' "$1"; missing=1; }
+ok(){ printf 'OK      %s
+' "$1"; }
+miss(){ printf 'MISSING %s
+' "$1"; missing=1; }
 
 check_any(){
   k1="$1"; k2="$2"
@@ -16,12 +18,12 @@ check_any(){
 }
 
 # Required singles
-for k in \
-  OPENAI_API_KEY \
-  AUTO_POST_CRON \
-  TWITTER_API_KEY \
-  TWITTER_API_SECRET \
-  TWITTER_ACCESS_TOKEN \
+for k in \ 
+  OPENAI_API_KEY \ 
+  AUTO_POST_CRON \ 
+  TWITTER_API_KEY \ 
+  TWITTER_API_SECRET \ 
+  TWITTER_ACCESS_TOKEN \ 
   TWITTER_ACCESS_SECRET
  do
   if [[ -n ""${!k:-}" ]]; then ok "$k"; else miss "$k"; fi
