@@ -3,10 +3,8 @@ set -euo pipefail
 
 missing=0
 
-ok(){ printf 'OK      %s
-' "$1"; }
-miss(){ printf 'MISSING %s
-' "$1"; missing=1; }
+ok(){ printf 'OK      %s\n' "$1"; }
+miss(){ printf 'MISSING %s\n' "$1"; missing=1; }
 
 check_any(){
   k1="$1"; k2="$2"
@@ -25,9 +23,9 @@ for k in \
   TWITTER_API_SECRET \
   TWITTER_ACCESS_TOKEN \
   TWITTER_ACCESS_SECRET
-do
+ do
   if [[ -n ""${!k:-}"" ]]; then ok "$k"; else miss "$k"; fi
-done
+ done
 
 # Google Drive folders (at least one per pair)
 check_any GOOGLE_RAW_FOLDER_ID RAW_FOLDER_ID
@@ -42,7 +40,7 @@ fi
 
 if [[ "$missing" -eq 1 ]]; then
   echo "Environment check failed: one or more required variables are missing."
-  exit 1
+  exit 1;
 else
   echo "Environment check passed: all required variables are set."
 fi
