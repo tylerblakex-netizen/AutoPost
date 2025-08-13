@@ -1,6 +1,6 @@
 name: Agent Trigger (Direct Execution)
 
-on:
+"on":
   repository_dispatch:
     # Direct agent triggers for immediate execution
     types: [agent_autopost, agent_analyze]
