@@ -37,6 +37,13 @@ public class LLMSchedulerService {
     public void planDailyPost() throws IOException {
         System.out.println("Planning today's post time with LLM...");
         
+        // Check if OpenAI API key is available
+        if (openAiApiKey == null || openAiApiKey.trim().isEmpty()) {
+            System.out.println("OpenAI API key not configured, using fallback scheduling.");
+            scheduleWithFallback();
+            return;
+        }
+        
         // Check if we already have a time for today
         if (hasPlannedTimeForToday()) {
             System.out.println("Already have a planned time for today, skipping.");
@@ -57,6 +64,13 @@ public class LLMSchedulerService {
         
         // Schedule the actual post
         schedulePost(optimalTime.timestamp);
+    }
+    
+    private void scheduleWithFallback() throws IOException {
+        Set<String> recentMinutes = new HashSet<>(); // No history to avoid
+        PostTime fallbackTime = generateFallbackTime(recentMinutes);
+        saveNextRun(fallbackTime);
+        schedulePost(fallbackTime.timestamp);
     }
     
     private boolean hasPlannedTimeForToday() throws IOException {
