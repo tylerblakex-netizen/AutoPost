@@ -3,8 +3,10 @@ set -euo pipefail
 
 missing=0
 
-ok(){ printf 'OK      %s\n' "$1"; }
-miss(){ printf 'MISSING %s\n' "$1"; missing=1; }
+ok(){ printf 'OK      %s
+' "$1"; }
+miss(){ printf 'MISSING %s
+' "$1"; missing=1; }
 
 check_any(){
   k1="$1"; k2="$2"
@@ -24,7 +26,7 @@ for k in \
   TWITTER_ACCESS_TOKEN \
   TWITTER_ACCESS_SECRET
 do
-  if [[ -n ""${!k:-}" ]]; then ok "$k"; else miss "$k"; fi
+  if [[ -n ""${!k:-}"" ]]; then ok "$k"; else miss "$k"; fi
 done
 
 # Google Drive folders (at least one per pair)
@@ -32,7 +34,7 @@ check_any GOOGLE_RAW_FOLDER_ID RAW_FOLDER_ID
 check_any GOOGLE_EDITS_FOLDER_ID EDITS_FOLDER_ID
 
 # Service account JSON (required single)
-if [[ -n ""${GOOGLE_SERVICE_ACCOUNT_JSON:-}" ]]; then
+if [[ -n ""${GOOGLE_SERVICE_ACCOUNT_JSON:-}"" ]]; then
   ok GOOGLE_SERVICE_ACCOUNT_JSON
 else
   miss GOOGLE_SERVICE_ACCOUNT_JSON
