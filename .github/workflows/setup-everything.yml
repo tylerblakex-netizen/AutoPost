@@ -1,6 +1,8 @@
 name: Setup AutoPost (one-shot)
-on: { workflow_dispatch: {} }
-permissions: { contents: write }
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
 
 jobs:
   setup:
@@ -351,7 +353,7 @@ jobs:
             public List<Double> detectScenes(Path input) throws Exception{
               var cmd = List.of(
                 ffprobe, "-show_frames", "-of", "compact=p=0", "-f", "lavfi",
-                "movie='"+ input.toAbsolutePath().toString().replace(\"'\",\"'\\\\''\") +"',select=gt(scene\\,"+scene+")"
+                "movie='"+ input.toAbsolutePath().toString().replace("'","\\\\'") +"',select=gt(scene\\,"+scene+")"
               );
               var p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
               List<String> out;
