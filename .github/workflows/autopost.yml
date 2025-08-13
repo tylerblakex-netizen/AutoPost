@@ -157,7 +157,7 @@ jobs:
           if [ "$EVENT" = "repository_dispatch" ]; then
             if [ "$ACTION" = "autopost_run" ]; then MODE_INPUT="run"; fi
             if [ "$ACTION" = "autopost_analyze" ]; then MODE_INPUT="analyze"; fi
-            [ -n "$PAYLOAD_MODE" ] && MODE_INPUT="$PAYLOAD_MODE"
+            [ -n "${PAYLOAD_MODE}" ] && MODE_INPUT="$PAYLOAD_MODE"
             [ -n "$PAYLOAD_FORCE" ] && FORCE_INPUT="$PAYLOAD_FORCE"
             [ -n "$PAYLOAD_DRY" ] && DRY_INPUT="$PAYLOAD_DRY"
           fi
