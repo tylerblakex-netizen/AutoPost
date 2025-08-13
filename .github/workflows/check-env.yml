@@ -20,9 +20,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Make check_env.sh executable
-        run: chmod +x .github/scripts/check_env.sh
-
       - name: Check required and optional secrets
         shell: bash
         env:
@@ -40,4 +37,4 @@ jobs:
           TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
           TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
           TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
-        run: .github/scripts/check_env.sh
+        run: bash .github/scripts/check_env.sh
