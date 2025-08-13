@@ -1,0 +1,27 @@
+  
+
+  <main class="container">
+    <h1>Mobile-friendly by default</h1>
+    <p>Responsive layout, fluid type, big tap targets. Drop your content here.</p>
+
+    <section class="grid cols-2">
+      <article>
+        <h2>What is AutoPost?</h2>
+        <p>Clips + captions + scheduling. Env-driven, no secrets in code.</p>
+      </article>
+      <article>
+        <h2>Quick Start</h2>
+        <ol>
+          <li>Set Codespaces/Repo secrets</li>
+          <li>Run the workflow</li>
+          <li>Schedule with <code>AUTO_POST_CRON</code></li>
+        </ol>
+      </article>
+    </section>
+
+    <footer>
+      <small>© <span id="y"></span> AutoPost</small>
+    </footer>
+  </main>
+
+  <script>document.getElementById('y').textContent = new Date().getFullYear()</script>
