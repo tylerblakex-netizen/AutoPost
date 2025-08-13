@@ -1,0 +1,81 @@
+name: Agent Trigger (Direct AutoPost / Analyze)
+
+on:
+  repository_dispatch:
+    types: [agent_autopost, agent_analyze]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "autopost | analyze"
+        required: false
+        default: "autopost"
+      dry_run:
+        description: "true to simulate (no external posting)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve mode
+        id: mode
+        run: |
+          set -euo pipefail
+          EVENT="${{ github.event_name }}"
+            TYPE="${{ github.event.action }}"
+          WF_ACTION="${{ github.event.inputs.action || 'autopost' }}"
+          MODE="run"
+          if [ "$EVENT" = "repository_dispatch" ]; then
+            if [ "$TYPE" = "agent_analyze" ]; then MODE="analyze"; fi
+          else
+            if [ "$WF_ACTION" = "analyze" ]; then MODE="analyze"; fi
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "Resolved MODE=$MODE EVENT=$EVENT TYPE=$TYPE WF_ACTION=$WF_ACTION (UTC $(date -u))"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Build
+        run: mvn -q -DskipTests package
+      - name: Write service account file (autopost only)
+        if: steps.mode.outputs.mode == 'run'
+        run: |
+          if [ -n "${GOOGLE_SERVICE_ACCOUNT_JSON:-}" ]; then
+            printf '%s' "$GOOGLE_SERVICE_ACCOUNT_JSON" > sa.json
+          fi
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      - name: Execute
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID }}
+          EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.mode.outputs.mode }}" = "analyze" ]; then
+            echo "Running analysis (direct, ungated)"
+            java -jar target/autopost.jar analyze
+          else
+            echo "Running autopost (direct, ungated)"
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "NOTE: DRY RUN requested (no external posting)."
+            fi
+            java -jar target/autopost.jar run
+          fi
+      - name: Cleanup
+        if: always()
+        run: rm -f sa.json || true

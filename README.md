@@ -108,23 +108,99 @@ mvn package       # Build the application
 
 The built JAR will be available at `target/autopost.jar`.
 
-## Automation
+## Automation Workflows
 
-This repository uses a consolidated GitHub Actions workflow:
+Two coordinated GitHub Actions workflows manage analysis and posting:
 
-| Function | Trigger | File |
-|----------|---------|------|
-| Daily posting (09:00 London ≈ 08:00 UTC) | Hourly schedule with gating | `.github/workflows/autopost.yml` |
-| Weekly analysis (Mon 03:00 UTC) | Hourly schedule with gating | `.github/workflows/autopost.yml` |
-| Manual runs | `workflow_dispatch` inputs | `.github/workflows/autopost.yml` |
-| Continuous Integration (build/tests) | push / PR to main | `.github/workflows/ci.yml` |
+| Workflow | Purpose | Gated by Time? | Triggers |
+|----------|---------|----------------|----------|
+| `autopost.yml` | Scheduled analysis + time-gated posting | Yes (08:00 UTC post / Mon 03:00 UTC analysis unless overridden) | schedule, workflow_dispatch, repository_dispatch |
+| `agent-trigger.yml` | Immediate manual/agent run (post or analyze) | No | workflow_dispatch, repository_dispatch |
+
+### Gated Workflow (autopost.yml)
+
+Runs hourly, but:
+- Analysis runs if: Monday 03:00 UTC OR mode=analyze/both OR force=true
+- Posting runs if: 08:00 UTC OR force=true AND (mode=run/both)
 
 Manual dispatch inputs:
 - `mode`: run | analyze | both
-- `dry_run`: true to avoid posting to X
+- `dry_run`: true to avoid posting to X/webhook
 - `force`: true to bypass time gating
 
-`sa.json` (Google service account credentials) is generated at runtime and ignored by Git.
+Repository dispatch event types:
+- `autopost_run`
+- `autopost_analyze`
+(Optionally override with client_payload: `mode`, `force`, `dry_run`)
+
+### Direct Workflow (agent-trigger.yml)
+
+Always executes immediately—no gating.
+
+Repository dispatch event types:
+- `agent_autopost`
+- `agent_analyze`
+
+Inputs (workflow_dispatch):
+- `action`: autopost | analyze
+- `dry_run`: true/false
+
+### Examples
+
+```bash
+# Gated run (may skip if not at target time)
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/OWNER/REPO/dispatches \
+  -d '{"event_type":"autopost_run"}'
+
+# Force gated run immediately (ignore time)
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/OWNER/REPO/dispatches \
+  -d '{"event_type":"autopost_run","client_payload":{"force":"true"}}'
+
+# Gated analysis
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/OWNER/REPO/dispatches \
+  -d '{"event_type":"autopost_analyze"}'
+
+# Immediate autopost (no gating)
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/OWNER/REPO/dispatches \
+  -d '{"event_type":"agent_autopost"}'
+
+# Immediate analysis (no gating)
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/OWNER/REPO/dispatches \
+  -d '{"event_type":"agent_analyze"}'
+
+# Combined override (gated workflow) with both + dry run + force
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/OWNER/REPO/dispatches \
+  -d '{"event_type":"autopost_run","client_payload":{"mode":"both","dry_run":"true","force":"true"}}'
+```
+
+### Choosing Which Trigger
+
+| Goal | Use |
+|------|-----|
+| Respect daily timing | `autopost_run` |
+| Ignore timing & run now | `agent_autopost` or `autopost_run` with `force:true` |
+| Immediate analysis | `agent_analyze` |
+| Force analyze + run | `autopost_run` with `client_payload.mode=both & force:true` |
+| Safe test (no posting) | add `dry_run:true` |
+
+### Dry Run
+
+When `dry_run=true`, the workflow sets `DRY_RUN` env; your code should skip posting to X / webhook.
+
+### Force
+
+`force=true` bypasses time gating in the gated workflow only.
+
+### Artifacts & Commits
+
+- `best_slots.json` & `analysis.md` updated/committed only if changed.
+- Artifacts uploaded for both analysis and autopost runs (if files present).
 
 <!-- AUTOGEN SECTION (do not edit manually; future tooling may update) -->
 <!-- /AUTOGEN SECTION -->
