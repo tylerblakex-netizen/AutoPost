@@ -1,18 +1,19 @@
 import OpenAI from "openai";
 
-const token = process.env.GITHUB_TOKEN;
+// Prefer GITHUB_TOKEN, fallback to TOKEN_GITHUB if the former isn't set
+const token = process.env.GITHUB_TOKEN || process.env.TOKEN_GITHUB;
 const endpoint = "https://models.github.ai/inference";
 const model = "openai/gpt-4.1";
 
 async function main() {
   if (!token) {
     console.error(
-      "Missing GITHUB_TOKEN environment variable. In Codespaces, add it as a Codespaces secret, grant it access to this repo, then stop & restart the codespace."
+      "Missing token. Set GITHUB_TOKEN or TOKEN_GITHUB as an environment variable (e.g., export GITHUB_TOKEN=...)"
     );
     process.exit(1);
   }
 
-  const client = new OpenAI({ baseURL: endpoint, apiKey: token, timeout: 15000 });
+  const client = new OpenAI({ baseURL: endpoint, apiKey: token });
 
   const response = await client.chat.completions.create({
     model,
