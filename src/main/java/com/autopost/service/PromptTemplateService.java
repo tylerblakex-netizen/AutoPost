@@ -4,15 +4,14 @@ import com.autopost.config.ConfigProperties;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 /**
- * Service for managing LLM prompt templates with parameter substitution and safety rails.
- * Templates are versioned and stored in src/main/resources/prompts/.
+ * Service for managing LLM prompt templates with parameter substitution and safety rails. Templates
+ * are versioned and stored in src/main/resources/prompts/.
  */
 @Service
 public class PromptTemplateService {
@@ -36,13 +35,15 @@ public class PromptTemplateService {
   public String getCaptionPrompt(String videoContext, String additionalContext, String tone) {
     try {
       String template = loadTemplate("caption_template.md");
-      
+
       // Apply parameter substitutions
-      String prompt = template
-          .replace("{maxHashtags}", String.valueOf(config.getMaxHashtags()))
-          .replace("{tone}", tone != null ? tone : "engaging and conversational")
-          .replace("{videoContext}", videoContext != null ? videoContext : "Video content analysis")
-          .replace("{additionalContext}", additionalContext != null ? additionalContext : "");
+      String prompt =
+          template
+              .replace("{maxHashtags}", String.valueOf(config.getMaxHashtags()))
+              .replace("{tone}", tone != null ? tone : "engaging and conversational")
+              .replace(
+                  "{videoContext}", videoContext != null ? videoContext : "Video content analysis")
+              .replace("{additionalContext}", additionalContext != null ? additionalContext : "");
 
       log.debug("Generated caption prompt with {} max hashtags", config.getMaxHashtags());
       return prompt;
@@ -63,17 +64,25 @@ public class PromptTemplateService {
    * @return the processed prompt ready for LLM
    */
   public String getSchedulingPrompt(
-      String historyData, String timeWindow, String avoidTimes, String dayType, String contentType) {
+      String historyData,
+      String timeWindow,
+      String avoidTimes,
+      String dayType,
+      String contentType) {
     try {
       String template = loadTemplate("scheduling_template.md");
-      
+
       // Apply parameter substitutions
-      String prompt = template
-          .replace("{timeWindow}", timeWindow != null ? timeWindow : "08:00-22:00 Europe/London")
-          .replace("{avoidTimes}", avoidTimes != null ? avoidTimes : "none")
-          .replace("{dayType}", dayType != null ? dayType : "weekday")
-          .replace("{contentType}", contentType != null ? contentType : "video teaser")
-          .replace("{historyData}", historyData != null ? historyData : "No historical data available");
+      String prompt =
+          template
+              .replace(
+                  "{timeWindow}", timeWindow != null ? timeWindow : "08:00-22:00 Europe/London")
+              .replace("{avoidTimes}", avoidTimes != null ? avoidTimes : "none")
+              .replace("{dayType}", dayType != null ? dayType : "weekday")
+              .replace("{contentType}", contentType != null ? contentType : "video teaser")
+              .replace(
+                  "{historyData}",
+                  historyData != null ? historyData : "No historical data available");
 
       log.debug("Generated scheduling prompt for {} with time window {}", dayType, timeWindow);
       return prompt;
@@ -92,7 +101,7 @@ public class PromptTemplateService {
    */
   private String loadTemplate(String templateName) throws IOException {
     ClassPathResource resource = new ClassPathResource("prompts/" + templateName);
-    
+
     if (!resource.exists()) {
       throw new IOException("Template not found: " + templateName);
     }
@@ -102,31 +111,32 @@ public class PromptTemplateService {
     }
   }
 
-  /**
-   * Fallback caption prompt when template loading fails.
-   */
-  private String getFallbackCaptionPrompt(String videoContext, String additionalContext, String tone) {
+  /** Fallback caption prompt when template loading fails. */
+  private String getFallbackCaptionPrompt(
+      String videoContext, String additionalContext, String tone) {
     log.warn("Using fallback caption prompt");
     return String.format(
         "Generate an engaging, algorithm-safe social media caption for this video content: %s. "
-        + "Keep it under 280 characters and include exactly %d relevant hashtags. "
-        + "Use a %s tone and avoid explicit content. Additional context: %s",
+            + "Keep it under 280 characters and include exactly %d relevant hashtags. "
+            + "Use a %s tone and avoid explicit content. Additional context: %s",
         videoContext != null ? videoContext : "Video content",
         config.getMaxHashtags(),
         tone != null ? tone : "engaging",
         additionalContext != null ? additionalContext : "");
   }
 
-  /**
-   * Fallback scheduling prompt when template loading fails.
-   */
+  /** Fallback scheduling prompt when template loading fails. */
   private String getFallbackSchedulingPrompt(
-      String historyData, String timeWindow, String avoidTimes, String dayType, String contentType) {
+      String historyData,
+      String timeWindow,
+      String avoidTimes,
+      String dayType,
+      String contentType) {
     log.warn("Using fallback scheduling prompt");
     return String.format(
         "Based on this posting history data: %s, recommend the optimal posting time for tomorrow "
-        + "within the window %s. Avoid these recent times: %s. Consider this is a %s and the content is %s. "
-        + "Respond with a JSON object containing timestamp (UTC), confidence, and reason.",
+            + "within the window %s. Avoid these recent times: %s. Consider this is a %s and the content is %s. "
+            + "Respond with a JSON object containing timestamp (UTC), confidence, and reason.",
         historyData != null ? historyData : "No data",
         timeWindow != null ? timeWindow : "08:00-22:00 Europe/London",
         avoidTimes != null ? avoidTimes : "none",

@@ -1,0 +1,90 @@
+# Gitleaks configuration for AutoPost
+# Detects secrets while allowing environment variable names only
+
+title = "AutoPost Gitleaks Configuration"
+
+[extend]
+# Use the default gitleaks rules as a base
+useDefault = true
+
+# Custom rules for this project
+[[rules]]
+id = "autopost-env-vars"
+description = "Detect hardcoded AutoPost environment variable values"
+regex = '''(?i)(OPENAI_API_KEY|ANTHROPIC_API_KEY|GROK_API_KEY|X_BEARER_TOKEN|X_API_KEY|X_API_SECRET|X_ACCESS_TOKEN|X_ACCESS_TOKEN_SECRET|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|GOOGLE_SERVICE_ACCOUNT_JSON|GOOGLE_RAW_FOLDER_ID|GOOGLE_EDITS_FOLDER_ID|RAW_FOLDER_ID|EDITS_FOLDER_ID|WEBHOOK_URL)\s*[:=]\s*["\']?([a-zA-Z0-9+/=_-]{8,})["\']?'''
+keywords = [
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY", 
+    "GROK_API_KEY",
+    "X_BEARER_TOKEN",
+    "X_API_KEY",
+    "X_API_SECRET",
+    "X_ACCESS_TOKEN",
+    "X_ACCESS_TOKEN_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_SERVICE_ACCOUNT_JSON",
+    "GOOGLE_RAW_FOLDER_ID",
+    "GOOGLE_EDITS_FOLDER_ID",
+    "RAW_FOLDER_ID",
+    "EDITS_FOLDER_ID",
+    "WEBHOOK_URL"
+]
+
+# Global allowlist (things to ignore everywhere)
+[allowlist]
+description = "Allowlist for AutoPost project"
+
+# Allow environment variable names (but not values)
+regexes = [
+    '''(?i)System\.getenv\("(OPENAI_API_KEY|ANTHROPIC_API_KEY|GROK_API_KEY|X_BEARER_TOKEN|X_API_KEY|X_API_SECRET|X_ACCESS_TOKEN|X_ACCESS_TOKEN_SECRET|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|GOOGLE_SERVICE_ACCOUNT_JSON|GOOGLE_RAW_FOLDER_ID|GOOGLE_EDITS_FOLDER_ID|RAW_FOLDER_ID|EDITS_FOLDER_ID|WEBHOOK_URL)"\)''',
+    '''(?i)(OPENAI_API_KEY|ANTHROPIC_API_KEY|GROK_API_KEY|X_BEARER_TOKEN|X_API_KEY|X_API_SECRET|X_ACCESS_TOKEN|X_ACCESS_TOKEN_SECRET|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|GOOGLE_SERVICE_ACCOUNT_JSON|GOOGLE_RAW_FOLDER_ID|GOOGLE_EDITS_FOLDER_ID|RAW_FOLDER_ID|EDITS_FOLDER_ID|WEBHOOK_URL)\s*\|\s*(Missing|required|is required)''',
+    '''getEnvOrProperty\("(OPENAI_API_KEY|ANTHROPIC_API_KEY|GROK_API_KEY|X_BEARER_TOKEN|X_API_KEY|X_API_SECRET|X_ACCESS_TOKEN|X_ACCESS_TOKEN_SECRET|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|GOOGLE_SERVICE_ACCOUNT_JSON|GOOGLE_RAW_FOLDER_ID|GOOGLE_EDITS_FOLDER_ID|RAW_FOLDER_ID|EDITS_FOLDER_ID|WEBHOOK_URL)"''',
+    '''missingRequired\.add\("(OPENAI_API_KEY|ANTHROPIC_API_KEY|GROK_API_KEY|X_BEARER_TOKEN|X_API_KEY|X_API_SECRET|X_ACCESS_TOKEN|X_ACCESS_TOKEN_SECRET|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|GOOGLE_SERVICE_ACCOUNT_JSON|GOOGLE_RAW_FOLDER_ID|GOOGLE_EDITS_FOLDER_ID|RAW_FOLDER_ID|EDITS_FOLDER_ID|WEBHOOK_URL)"\)''',
+    '''@Value\("\$\{[^}]+\}"\)''',
+    '''# Example.*token.*''',
+    '''// Example.*token.*''',
+    '''test.*token.*''',
+    '''mock.*token.*''',
+    '''fake.*token.*''',
+    '''dummy.*token.*''',
+    '''placeholder.*''',
+    '''YOUR_.*_HERE''',
+    '''xxx.*xxx''',
+    '''abc.*123''',
+    '''\[REDACTED\]''',
+    '''\*\*\*\*\*\*\*\*'''
+]
+
+# Paths to exclude from scanning
+paths = [
+    '''.*\.git/.*''',
+    '''.*target/.*''',
+    '''.*build/.*''',
+    '''.*\.mvn/.*''',
+    '''.*node_modules/.*''',
+    '''.*\.gradle/.*''',
+    '''.*\.idea/.*''',
+    '''.*\.vscode/.*''',
+    '''.*\.class$''',
+    '''.*\.jar$''',
+    '''.*\.war$''',
+    '''.*\.zip$''',
+    '''.*\.log$''',
+    '''.*\.DS_Store$''',
+    '''.*dependency-reduced-pom\.xml$''',
+    '''.*mvnw.*''',
+    '''.*gradlew.*''',
+    '''.*gradle-wrapper\..*''',
+    '''.*\.gitleaks\.toml$'''
+]
+
+# Files to exclude by name
+files = [
+    "mvnw",
+    "mvnw.cmd",
+    "gradlew",
+    "gradlew.bat",
+    "gradle-wrapper.jar",
+    "maven-wrapper.jar"
+]

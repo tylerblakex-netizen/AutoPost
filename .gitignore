@@ -1,3 +1,4 @@
+# Build outputs
 target/
 .idea/
 *.iml
@@ -6,7 +7,92 @@ target/
 .project
 .settings/
 .DS_Store
+
+# Environment and secrets (NEVER commit these)
 .env
+.env.*
 sa.json
+service-account.json
+google-service-account.json
+*.key
+*.pem
+*.p12
+
+# Application logs
 *.log
+logs/
+application-*.yml
+application-*.properties
+
+# Maven
 dependency-reduced-pom.xml
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Temporary files and processing artifacts
+clips/
+tmp/
+temp/
+*.tmp
+*.temp
+.autopost-setup-complete
+
+# FFmpeg outputs
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.m4v
+
+# State files
+state/
+best_slots.json
+analysis.md
+next_run.json
+post_log.txt
+posted/
+
+# Docker and container artifacts
+.docker/
+.devcontainer/.vscode/
+
+# IDE specific
+*.swp
+*.swo
+*~
+.viminfo
+
+# OS specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.directory
+
+# Test artifacts
+.coverage
+coverage.xml
+test-results/
+surefire-reports/
+failsafe-reports/
+
+# Security scanning
+.gitleaks/
+
+# Package managers
+node_modules/
+.npm/
+.yarn/
+
+# Python (if any Python utilities are added)
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+env/
+
+# Backup files
+*.bak
+*.backup
+*~

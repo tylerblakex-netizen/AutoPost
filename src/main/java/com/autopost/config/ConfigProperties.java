@@ -90,15 +90,13 @@ public class ConfigProperties {
 
     if (isBlank(
         getEnvOrProperty(
-            "GOOGLE_RAW_FOLDER_ID",
-            getEnvOrProperty("RAW_FOLDER_ID", googleRawFolderId)))) {
+            "GOOGLE_RAW_FOLDER_ID", getEnvOrProperty("RAW_FOLDER_ID", googleRawFolderId)))) {
       missingRequired.add("GOOGLE_RAW_FOLDER_ID (or RAW_FOLDER_ID for backward compatibility)");
     }
 
     if (isBlank(
         getEnvOrProperty(
-            "GOOGLE_EDITS_FOLDER_ID",
-            getEnvOrProperty("EDITS_FOLDER_ID", googleEditsFolderId)))) {
+            "GOOGLE_EDITS_FOLDER_ID", getEnvOrProperty("EDITS_FOLDER_ID", googleEditsFolderId)))) {
       missingRequired.add("GOOGLE_EDITS_FOLDER_ID (or EDITS_FOLDER_ID for backward compatibility)");
     }
 

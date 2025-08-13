@@ -93,8 +93,12 @@ public class HttpClientFactory {
             long jitter = ThreadLocalRandom.current().nextLong(0, baseDelay / 2);
             long delay = Math.min(baseDelay + jitter, 30000); // Cap at 30 seconds
 
-            log.debug("Retrying request to {} after {}ms (attempt {}/{})", 
-                request.url().host(), delay, attempt, maxRetries);
+            log.debug(
+                "Retrying request to {} after {}ms (attempt {}/{})",
+                request.url().host(),
+                delay,
+                attempt,
+                maxRetries);
 
             Thread.sleep(delay);
           }
@@ -118,8 +122,12 @@ public class HttpClientFactory {
           if (!shouldRetryOnException(e, attempt)) {
             throw e;
           }
-          log.warn("Request to {} failed (attempt {}/{}): {}", 
-              request.url().host(), attempt + 1, maxRetries + 1, e.getMessage());
+          log.warn(
+              "Request to {} failed (attempt {}/{}): {}",
+              request.url().host(),
+              attempt + 1,
+              maxRetries + 1,
+              e.getMessage());
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new IOException("Interrupted during retry backoff", e);
@@ -193,14 +201,17 @@ public class HttpClientFactory {
         response = chain.proceed(request);
       } catch (IOException e) {
         long duration = System.currentTimeMillis() - startTime;
-        log.warn("← {} {} failed after {}ms: {}", 
-            request.method(), request.url(), duration, redactor.redactException(e));
+        log.warn(
+            "← {} {} failed after {}ms: {}",
+            request.method(),
+            request.url(),
+            duration,
+            redactor.redactException(e));
         throw e;
       }
 
       long duration = System.currentTimeMillis() - startTime;
-      log.debug("← {} {} {} ({}ms)", 
-          request.method(), request.url(), response.code(), duration);
+      log.debug("← {} {} {} ({}ms)", request.method(), request.url(), response.code(), duration);
 
       // Log response headers (redacted) if trace enabled
       if (log.isTraceEnabled()) {

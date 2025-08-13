@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 public class AutoPostApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(AutoPostApplication.class, args);
-    }
+  public static void main(String[] args) {
+    SpringApplication.run(AutoPostApplication.class, args);
+  }
 }

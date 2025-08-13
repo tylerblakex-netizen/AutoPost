@@ -12,7 +12,9 @@ public class Redactor {
 
   // Patterns to detect token-like strings
   private static final Pattern API_KEY_PATTERN =
-      Pattern.compile("(?i)(api[_-]?key|token|secret|password|credential)[\"'\\s]*[:=][\"'\\s]*([a-zA-Z0-9+/=_-]{8,})", Pattern.CASE_INSENSITIVE);
+      Pattern.compile(
+          "(?i)(api[_-]?key|token|secret|password|credential)[\"'\\s]*[:=][\"'\\s]*([a-zA-Z0-9+/=_-]{8,})",
+          Pattern.CASE_INSENSITIVE);
 
   private static final Pattern BEARER_TOKEN_PATTERN =
       Pattern.compile("(?i)bearer\\s+([a-zA-Z0-9+/=_-]{8,})", Pattern.CASE_INSENSITIVE);
@@ -21,10 +23,19 @@ public class Redactor {
       Pattern.compile("\\b[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\b");
 
   private static final Pattern OAUTH_TOKEN_PATTERN =
-      Pattern.compile("(?i)(oauth[_-]?token|access[_-]?token)[\"'\\s]*[:=][\"'\\s]*([a-zA-Z0-9+/=_-]{8,})", Pattern.CASE_INSENSITIVE);
+      Pattern.compile(
+          "(?i)(oauth[_-]?token|access[_-]?token)[\"'\\s]*[:=][\"'\\s]*([a-zA-Z0-9+/=_-]{8,})",
+          Pattern.CASE_INSENSITIVE);
 
   private static final Pattern GOOGLE_KEY_PATTERN =
-      Pattern.compile("(?i)(private_key[\"'\\s]*[:=][\"'\\s]*[\"'])([^\"']+)([\"'])", Pattern.CASE_INSENSITIVE);
+      Pattern.compile(
+          "(?i)(private_key[\"'\\s]*[:=][\"'\\s]*[\"'])([^\"']+)([\"'])", Pattern.CASE_INSENSITIVE);
+
+  // Enhanced pattern for object toString that might contain API keys
+  private static final Pattern API_KEY_IN_OBJECT_PATTERN =
+      Pattern.compile(
+          "(?i)(apikey|api_key|token|key)\\s*[=:]\\s*([a-zA-Z0-9+/=_-]{8,})",
+          Pattern.CASE_INSENSITIVE);
 
   private static final String REDACTED = "[REDACTED]";
 
@@ -55,6 +66,9 @@ public class Redactor {
 
     // Redact Google private keys
     redacted = GOOGLE_KEY_PATTERN.matcher(redacted).replaceAll("$1" + REDACTED + "$3");
+
+    // Redact API keys in object toString format
+    redacted = API_KEY_IN_OBJECT_PATTERN.matcher(redacted).replaceAll("$1=" + REDACTED);
 
     return redacted;
   }
@@ -140,6 +154,7 @@ public class Redactor {
         || BEARER_TOKEN_PATTERN.matcher(text).find()
         || JSON_WEB_TOKEN_PATTERN.matcher(text).find()
         || OAUTH_TOKEN_PATTERN.matcher(text).find()
-        || GOOGLE_KEY_PATTERN.matcher(text).find();
+        || GOOGLE_KEY_PATTERN.matcher(text).find()
+        || API_KEY_IN_OBJECT_PATTERN.matcher(text).find();
   }
 }
