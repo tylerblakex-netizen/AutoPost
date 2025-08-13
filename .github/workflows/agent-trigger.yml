@@ -1,17 +1,16 @@
-name: Agent Trigger (Direct Execution)
+name: Agent Trigger (Direct AutoPost / Analyze)
 
-"on":
+on:
   repository_dispatch:
-    # Direct agent triggers for immediate execution
     types: [agent_autopost, agent_analyze]
   workflow_dispatch:
     inputs:
       action:
-        description: "run | analyze"
+        description: "autopost | analyze"
         required: false
-        default: "run"
+        default: "autopost"
       dry_run:
-        description: "true = do everything except post to X"
+        description: "true to simulate (no external posting)"
         required: false
         default: "false"
 
@@ -29,69 +28,49 @@ env:
   SCENE_THRESHOLD: "0.4"
 
 jobs:
-  execute:
+  run:
     runs-on: ubuntu-latest
-    name: Direct AutoPost Execution
     steps:
-      - name: Determine execution mode
-        id: config
+      - name: Resolve mode
+        id: mode
         run: |
           set -euo pipefail
-          # Map repository_dispatch events and workflow_dispatch inputs to mode
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            case "${{ github.event.action }}" in
-              "agent_autopost")
-                MODE="run"
-                DRY="${{ github.event.client_payload.dry_run || 'false' }}"
-                ;;
-              "agent_analyze")
-                MODE="analyze"
-                DRY="${{ github.event.client_payload.dry_run || 'false' }}"
-                ;;
-              *)
-                MODE="run"
-                DRY="false"
-                ;;
-            esac
+          EVENT="${{ github.event_name }}"
+          TYPE="${{ github.event.action }}"
+          WF_ACTION="${{ github.event.inputs.action || 'autopost' }}"
+          MODE="run"
+          if [ "$EVENT" = "repository_dispatch" ]; then
+            if [ "$TYPE" = "agent_analyze" ]; then MODE="analyze"; fi
           else
-            # Handle workflow_dispatch
-            MODE="${{ github.event.inputs.action || 'run' }}"
-            DRY="${{ github.event.inputs.dry_run || 'false' }}"
+            if [ "$WF_ACTION" = "analyze" ]; then MODE="analyze"; fi
           fi
-
-          echo "mode=$MODE" >> $GITHUB_OUTPUT
-          echo "dry_run=$DRY" >> $GITHUB_OUTPUT
-          echo "Executing mode=$MODE dry_run=$DRY (UTC now $(date -u))"
-
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "Resolved MODE=$MODE EVENT=$EVENT TYPE=$TYPE WF_ACTION=$WF_ACTION (UTC $(date -u))"
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
           cache: maven
-
-      - name: Install ffmpeg
-        if: steps.config.outputs.mode == 'run'
+      - name: Install ffmpeg (autopost only)
+        if: steps.mode.outputs.mode == 'run'
         run: |
           set -e
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-
       - name: Build
         run: mvn -q -DskipTests package
-
-      - name: Write service account file
-        if: steps.config.outputs.mode == 'run'
+      - name: Write service account file (autopost only)
+        if: steps.mode.outputs.mode == 'run'
         run: |
-          printf '%s' "$GOOGLE_SERVICE_ACCOUNT_JSON" > sa.json
+          if [ -n "${GOOGLE_SERVICE_ACCOUNT_JSON:-}" ]; then
+            printf '%s' "$GOOGLE_SERVICE_ACCOUNT_JSON" > sa.json
+          fi
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-
-      - name: Execute AutoPost
+      - name: Execute
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
           RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID }}
           EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
@@ -99,25 +78,25 @@ jobs:
           TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
           TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
           TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
-          CLIP_DURATION_SEC: ${{ env.CLIP_DURATION_SEC }}
-          TEASER_DURATION_SEC: ${{ env.TEASER_DURATION_SEC }}
-          NUM_CLIPS: ${{ env.NUM_CLIPS }}
-          SCENE_THRESHOLD: ${{ env.SCENE_THRESHOLD }}
-          DRY_RUN: ${{ steps.config.outputs.dry_run }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: |
           set -euo pipefail
-          MODE="${{ steps.config.outputs.mode }}"
-          if [ "${DRY_RUN}" = "true" ] && [ "$MODE" = "run" ]; then
-            echo "DRY RUN: Application should avoid posting."
+          if [ "${{ steps.mode.outputs.mode }}" = "analyze" ]; then
+            echo "Running analysis (direct, ungated)"
+            java -jar target/autopost.jar analyze
+          else
+            echo "Running autopost (direct, ungated)"
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "NOTE: DRY RUN requested (no external posting)."
+            fi
+            java -jar target/autopost.jar run
           fi
-          java -jar target/autopost.jar "$MODE"
-
       - name: Cleanup
-        if: steps.config.outputs.mode == 'run'
-        run: rm -f sa.json
-
-      - name: Commit updated analysis artifacts
-        if: steps.config.outputs.mode == 'analyze'
+        if: always()
+        run: rm -f sa.json || true
+      - name: Commit updated analysis artifacts (analyze mode)
+        if: steps.mode.outputs.mode == 'analyze'
         run: |
           set -euo pipefail
           git config user.name "autopost-bot"
@@ -132,7 +111,6 @@ jobs:
             git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
             git push
           fi
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -141,14 +119,13 @@ jobs:
             best_slots.json
             analysis.md
           if-no-files-found: ignore
-
       - name: Summary
         if: always()
         run: |
           {
             echo "### Agent Trigger Execution"
-            echo "* Mode: ${{ steps.config.outputs.mode }}"
+            echo "* Mode: ${{ steps.mode.outputs.mode }}"
             echo "* Status: ${{ job.status }}"
-            echo "* Dry run: ${{ steps.config.outputs.dry_run }}"
+            echo "* Dry run: ${{ github.event.inputs.dry_run || 'false' }}"
             echo "* Time (UTC): $(date -u)"
-          } >> $GITHUB_STEP_SUMMARY
+          } >> "$GITHUB_STEP_SUMMARY"

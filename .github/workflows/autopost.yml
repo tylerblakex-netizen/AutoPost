@@ -1,8 +1,8 @@
 name: AutoPost & Analyze
 
-"on":
+on:
   schedule:
-    - cron: "0 * * * *"   # Hourly, internal gating decides real actions
+    - cron: "0 * * * *"   # Hourly; internal gating decides real execution times
   workflow_dispatch:
     inputs:
       mode:
@@ -10,15 +10,15 @@ name: AutoPost & Analyze
         required: false
         default: "run"
       dry_run:
-        description: "true = do everything except post to X"
+        description: "true to avoid external posting (simulation)"
         required: false
         default: "false"
       force:
-        description: "true = bypass time gating"
+        description: "true to bypass time gating"
         required: false
         default: "false"
   repository_dispatch:
-    # External agents can trigger via repository_dispatch events
+    # External agent triggers supporting analyze or run modes
     types: [autopost_run, autopost_analyze]
 
 permissions:
@@ -43,39 +43,34 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
-          # Handle repository_dispatch events by mapping to existing variables
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            case "${{ github.event.action }}" in
-              "autopost_analyze")
-                REQ_MODE="analyze"
-                FORCE="${{ github.event.client_payload.force || 'false' }}"
-                ;;
-              "autopost_run")
-                REQ_MODE="run"
-                FORCE="${{ github.event.client_payload.force || 'false' }}"
-                ;;
-              *)
-                REQ_MODE="run"
-                FORCE="false"
-                ;;
-            esac
-          else
-            # Handle workflow_dispatch and schedule events
-            FORCE="${{ github.event.inputs.force || 'false' }}"
-            REQ_MODE="${{ github.event.inputs.mode || 'run' }}"
+          EVENT="${{ github.event_name }}"
+          ACTION="${{ github.event.action }}"
+          MODE_INPUT="${{ github.event.inputs.mode || 'run' }}"
+          FORCE_INPUT="${{ github.event.inputs.force || 'false' }}"
+          # Optional repository_dispatch client payload values
+            PAYLOAD_FORCE="${{ github.event.client_payload.force }}"
+          PAYLOAD_MODE="${{ github.event.client_payload.mode }}"
+
+          # Map repository_dispatch action to mode; allow client_payload override
+          if [ "$EVENT" = "repository_dispatch" ]; then
+            if [ "$ACTION" = "autopost_analyze" ]; then MODE_INPUT="analyze"; fi
+            if [ "$ACTION" = "autopost_run" ]; then MODE_INPUT="run"; fi
+            [ -n "${PAYLOAD_MODE}" ] && MODE_INPUT="${PAYLOAD_MODE}"
+            [ -n "${PAYLOAD_FORCE}" ] && FORCE_INPUT="${PAYLOAD_FORCE}"
           fi
 
           DOW=$(date -u +%u)   # 1=Mon
-          # HH:MM (UTC)
           HM=$(date -u +%H:%M)
           SHOULD="false"
-          if [ "$FORCE" = "true" ]; then SHOULD="true"; fi
-          if [ "$REQ_MODE" = "analyze" ] || [ "$REQ_MODE" = "both" ]; then
-            SHOULD="true"
-          fi
+
+          # Run analysis if forced, mode=analyze|both, or weekly slot Monday 03:00 UTC
+          if [ "$FORCE_INPUT" = "true" ]; then SHOULD="true"; fi
+          if [ "$MODE_INPUT" = "analyze" ] || [ "$MODE_INPUT" = "both" ]; then SHOULD="true"; fi
           if [ "$DOW" = "1" ] && [ "$HM" = "03:00" ]; then SHOULD="true"; fi
-          echo "should_run=$SHOULD" >> $GITHUB_OUTPUT
-          echo "Computed should_run=$SHOULD (UTC now $(date -u))"
+
+          echo "mode=$MODE_INPUT" >> "$GITHUB_OUTPUT"
+          echo "should_run=$SHOULD" >> "$GITHUB_OUTPUT"
+          echo "Resolved EVENT=$EVENT ACTION=$ACTION MODE=$MODE_INPUT FORCE=$FORCE_INPUT (UTC now $(date -u))"
       - if: steps.gate.outputs.should_run == 'true'
         uses: actions/checkout@v4
       - if: steps.gate.outputs.should_run == 'true'
@@ -85,7 +80,7 @@ jobs:
           java-version: "17"
           cache: maven
       - if: steps.gate.outputs.should_run == 'true'
-        name: Build (skip tests for speed)
+        name: Build (skip tests)
         run: mvn -q -DskipTests package
       - if: steps.gate.outputs.should_run == 'true'
         name: Run analysis
@@ -112,8 +107,9 @@ jobs:
           if git diff --cached --quiet; then
             echo "No analysis changes to commit."
           else
+            current_branch="${GITHUB_REF_NAME:-main}"
             git commit -m "chore: update best posting slots"
-            git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
+            git pull --rebase origin "$current_branch" || true
             git push
           fi
       - if: steps.gate.outputs.should_run == 'true'
@@ -131,9 +127,10 @@ jobs:
           {
             echo "### Analysis Job"
             echo "* Ran: ${{ steps.gate.outputs.should_run }}"
+            echo "* Mode: ${{ steps.gate.outputs.mode }}"
             echo "* Status: ${{ job.status }}"
             echo "* Time (UTC): $(date -u)"
-          } >> $GITHUB_STEP_SUMMARY
+          } >> "$GITHUB_STEP_SUMMARY"
 
   autopost:
     runs-on: ubuntu-latest
@@ -144,42 +141,37 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
-          # Handle repository_dispatch events by mapping to existing variables
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            case "${{ github.event.action }}" in
-              "autopost_run")
-                REQ_MODE="run"
-                FORCE="${{ github.event.client_payload.force || 'false' }}"
-                DRY="${{ github.event.client_payload.dry_run || 'false' }}"
-                ;;
-              "autopost_analyze")
-                REQ_MODE="analyze"
-                FORCE="${{ github.event.client_payload.force || 'false' }}"
-                DRY="${{ github.event.client_payload.dry_run || 'false' }}"
-                ;;
-              *)
-                REQ_MODE="run"
-                FORCE="false"
-                DRY="false"
-                ;;
-            esac
-          else
-            # Handle workflow_dispatch and schedule events
-            FORCE="${{ github.event.inputs.force || 'false' }}"
-            REQ_MODE="${{ github.event.inputs.mode || 'run' }}"
-            DRY="${{ github.event.inputs.dry_run || 'false' }}"
+          EVENT="${{ github.event_name }}"
+          ACTION="${{ github.event.action }}"
+          MODE_INPUT="${{ github.event.inputs.mode || 'run' }}"
+          FORCE_INPUT="${{ github.event.inputs.force || 'false' }}"
+          DRY_INPUT="${{ github.event.inputs.dry_run || 'false' }}"
+          PAYLOAD_FORCE="${{ github.event.client_payload.force }}"
+          PAYLOAD_MODE="${{ github.event.client_payload.mode }}"
+          PAYLOAD_DRY="${{ github.event.client_payload.dry_run }}"
+
+          if [ "$EVENT" = "repository_dispatch" ]; then
+            if [ "$ACTION" = "autopost_run" ]; then MODE_INPUT="run"; fi
+            if [ "$ACTION" = "autopost_analyze" ]; then MODE_INPUT="analyze"; fi
+            [ -n "$PAYLOAD_MODE" ] && MODE_INPUT="$PAYLOAD_MODE"
+            [ -n "$PAYLOAD_FORCE" ] && FORCE_INPUT="$PAYLOAD_FORCE"
+            [ -n "$PAYLOAD_DRY" ] && DRY_INPUT="$PAYLOAD_DRY"
           fi
 
           HM=$(date -u +%H:%M)
-          TARGET="08:00" # 08:00 UTC ≈ 09:00 London winter
+          TARGET="08:00" # Primary posting time (UTC)
           SHOULD="false"
-          if [ "$FORCE" = "true" ]; then SHOULD="true"; fi
-          if [ "$REQ_MODE" = "run" ] || [ "$REQ_MODE" = "both" ]; then
+
+          if [ "$FORCE_INPUT" = "true" ]; then
+            SHOULD="true"
+          elif [ "$MODE_INPUT" = "run" ] || [ "$MODE_INPUT" = "both" ]; then
             if [ "$HM" = "$TARGET" ]; then SHOULD="true"; fi
           fi
-          echo "should_run=$SHOULD" >> $GITHUB_OUTPUT
-          echo "dry_run=$DRY" >> $GITHUB_OUTPUT
-          echo "Computed should_run=$SHOULD dry_run=$DRY (UTC now $(date -u))"
+
+          echo "should_run=$SHOULD" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY_INPUT" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE_INPUT" >> "$GITHUB_OUTPUT"
+          echo "Resolved EVENT=$EVENT ACTION=$ACTION MODE=$MODE_INPUT FORCE=$FORCE_INPUT DRY=$DRY_INPUT (UTC now $(date -u))"
       - if: steps.gate.outputs.should_run == 'true'
         uses: actions/checkout@v4
       - if: steps.gate.outputs.should_run == 'true'
@@ -199,8 +191,7 @@ jobs:
         run: mvn -q -DskipTests package
       - if: steps.gate.outputs.should_run == 'true'
         name: Write service account file
-        run: |
-          printf '%s' "$GOOGLE_SERVICE_ACCOUNT_JSON" > sa.json
+        run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT_JSON" > sa.json
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       - if: steps.gate.outputs.should_run == 'true'
@@ -223,7 +214,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${DRY_RUN}" = "true" ]; then
-            echo "DRY RUN: Application should avoid posting."
+            echo "DRY RUN: Application should not post externally."
           fi
           java -jar target/autopost.jar run
       - if: steps.gate.outputs.should_run == 'true'
@@ -244,7 +235,8 @@ jobs:
           {
             echo "### Autopost Job"
             echo "* Ran: ${{ steps.gate.outputs.should_run }}"
+            echo "* Mode: ${{ steps.gate.outputs.mode }}"
             echo "* Status: ${{ job.status }}"
             echo "* Dry run: ${{ steps.gate.outputs.dry_run }}"
             echo "* Time (UTC): $(date -u)"
-          } >> $GITHUB_STEP_SUMMARY
+          } >> "$GITHUB_STEP_SUMMARY"
