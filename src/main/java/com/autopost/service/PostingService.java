@@ -62,30 +62,62 @@ public class PostingService {
     
     @PostConstruct
     public void init() throws Exception {
-        // Initialize Twitter
-        ConfigurationBuilder cb = new ConfigurationBuilder();
-        cb.setDebugEnabled(true)
-            .setOAuthConsumerKey(twitterApiKey)
-            .setOAuthConsumerSecret(twitterApiSecret)
-            .setOAuthAccessToken(twitterAccessToken)
-            .setOAuthAccessTokenSecret(twitterAccessSecret);
+        // Initialize Twitter if credentials are available
+        if (hasTwitterCredentials()) {
+            try {
+                ConfigurationBuilder cb = new ConfigurationBuilder();
+                cb.setDebugEnabled(true)
+                    .setOAuthConsumerKey(twitterApiKey)
+                    .setOAuthConsumerSecret(twitterApiSecret)
+                    .setOAuthAccessToken(twitterAccessToken)
+                    .setOAuthAccessTokenSecret(twitterAccessSecret);
+                
+                TwitterFactory tf = new TwitterFactory(cb.build());
+                twitter = tf.getInstance();
+                System.out.println("Twitter service initialized successfully");
+            } catch (Exception e) {
+                System.err.println("Failed to initialize Twitter service: " + e.getMessage());
+            }
+        } else {
+            System.out.println("Twitter credentials not configured, Twitter service disabled");
+        }
         
-        TwitterFactory tf = new TwitterFactory(cb.build());
-        twitter = tf.getInstance();
-        
-        // Initialize Google Drive
-        GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(serviceAccountPath))
-            .createScoped(Arrays.asList("https://www.googleapis.com/auth/drive.readonly"));
-        
-        driveService = new Drive.Builder(
-            GoogleNetHttpTransport.newTrustedTransport(),
-            GsonFactory.getDefaultInstance(),
-            new HttpCredentialsAdapter(credentials))
-            .setApplicationName("AutoPost")
-            .build();
+        // Initialize Google Drive if credentials are available
+        if (hasGoogleCredentials()) {
+            try {
+                GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(serviceAccountPath))
+                    .createScoped(Arrays.asList("https://www.googleapis.com/auth/drive.readonly"));
+                
+                driveService = new Drive.Builder(
+                    GoogleNetHttpTransport.newTrustedTransport(),
+                    GsonFactory.getDefaultInstance(),
+                    new HttpCredentialsAdapter(credentials))
+                    .setApplicationName("AutoPost")
+                    .build();
+                System.out.println("Google Drive service initialized successfully");
+            } catch (Exception e) {
+                System.err.println("Failed to initialize Google Drive service: " + e.getMessage());
+            }
+        } else {
+            System.out.println("Google credentials not configured, Google Drive service disabled");
+        }
         
         // Check for existing scheduled post
         loadScheduledPost();
+    }
+    
+    private boolean hasTwitterCredentials() {
+        return twitterApiKey != null && !twitterApiKey.trim().isEmpty() &&
+               twitterApiSecret != null && !twitterApiSecret.trim().isEmpty() &&
+               twitterAccessToken != null && !twitterAccessToken.trim().isEmpty() &&
+               twitterAccessSecret != null && !twitterAccessSecret.trim().isEmpty();
+    }
+    
+    private boolean hasGoogleCredentials() {
+        return serviceAccountPath != null && !serviceAccountPath.trim().isEmpty() &&
+               rawFolderId != null && !rawFolderId.trim().isEmpty() &&
+               editsFolderId != null && !editsFolderId.trim().isEmpty() &&
+               new File(serviceAccountPath).exists();
     }
     
     // Check every minute if it's time to post
@@ -114,6 +146,17 @@ public class PostingService {
         // Check if already posted today
         if (Files.exists(todayMarker)) {
             System.out.println("Already posted today, skipping.");
+            return;
+        }
+        
+        // Check if services are available
+        if (driveService == null) {
+            System.out.println("Google Drive service not available, cannot download videos.");
+            return;
+        }
+        
+        if (twitter == null) {
+            System.out.println("Twitter service not available, cannot post.");
             return;
         }
         
