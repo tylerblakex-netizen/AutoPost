@@ -108,6 +108,27 @@ mvn package       # Build the application
 
 The built JAR will be available at `target/autopost.jar`.
 
+## Automation
+
+This repository uses a consolidated GitHub Actions workflow:
+
+| Function | Trigger | File |
+|----------|---------|------|
+| Daily posting (09:00 London ≈ 08:00 UTC) | Hourly schedule with gating | `.github/workflows/autopost.yml` |
+| Weekly analysis (Mon 03:00 UTC) | Hourly schedule with gating | `.github/workflows/autopost.yml` |
+| Manual runs | `workflow_dispatch` inputs | `.github/workflows/autopost.yml` |
+| Continuous Integration (build/tests) | push / PR to main | `.github/workflows/ci.yml` |
+
+Manual dispatch inputs:
+- `mode`: run | analyze | both
+- `dry_run`: true to avoid posting to X
+- `force`: true to bypass time gating
+
+`sa.json` (Google service account credentials) is generated at runtime and ignored by Git.
+
+<!-- AUTOGEN SECTION (do not edit manually; future tooling may update) -->
+<!-- /AUTOGEN SECTION -->
+
 ## License
 
 This project is provided as-is for educational and personal use.
