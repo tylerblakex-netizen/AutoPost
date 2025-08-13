@@ -5,6 +5,8 @@ public class App {
       new XAnalyzer().run();
     } else if (args.length>0 && args[0].equalsIgnoreCase("server")) {
       AutoPostApplication.main(args);
+    } else if (args.length>0 && args[0].equalsIgnoreCase("run")) {
+      new Runner().run();
     } else {
       new Runner().run();
     }
