@@ -6,7 +6,12 @@ target/
 .project
 .settings/
 .DS_Store
-.env
+.env*
+!.env.example
+*.pem
+*.keystore
+*.p12
+credentials*.json
 sa.json
 *.log
 dependency-reduced-pom.xml
