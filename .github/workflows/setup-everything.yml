@@ -160,10 +160,10 @@ jobs:
                 env("WEBHOOK_URL",""),
                 env("GOOGLE_APPLICATION_CREDENTIALS",""),
                 env("GOOGLE_SERVICE_ACCOUNT_JSON",""),
-                env("TWITTER_API_KEY",""),
-                env("TWITTER_API_SECRET",""),
-                env("TWITTER_ACCESS_TOKEN",""),
-                env("TWITTER_ACCESS_SECRET","")
+                env("X_API_KEY",""),
+                env("X_API_SECRET",""),
+                env("X_ACCESS_TOKEN",""),
+                env("X_ACCESS_TOKEN_SECRET","")
               );
             }
             static String env(String k,String d){ String v=System.getenv(k); return v==null||v.isBlank()?d:v; }
@@ -629,10 +629,10 @@ jobs:
                     OPENAI_API_KEY: $${{ secrets.OPENAI_API_KEY }}
                     RAW_FOLDER_ID: "unused"
                     EDITS_FOLDER_ID: "unused"
-                    TWITTER_API_KEY: $${{ secrets.TWITTER_API_KEY }}
-                    TWITTER_API_SECRET: $${{ secrets.TWITTER_API_SECRET }}
-                    TWITTER_ACCESS_TOKEN: $${{ secrets.TWITTER_ACCESS_TOKEN }}
-                    TWITTER_ACCESS_SECRET: $${{ secrets.TWITTER_ACCESS_SECRET }}
+                    X_API_KEY: $${{ secrets.X_API_KEY }}
+                    X_API_SECRET: $${{ secrets.X_API_SECRET }}
+                    X_ACCESS_TOKEN: $${{ secrets.X_ACCESS_TOKEN }}
+                    X_ACCESS_TOKEN_SECRET: $${{ secrets.X_ACCESS_TOKEN_SECRET }}
                   run: java -jar target/autopost.jar analyze
                 - name: Commit best_slots.json
                   env:
@@ -671,10 +671,10 @@ jobs:
                     RAW_FOLDER_ID: $${{ secrets.RAW_FOLDER_ID }}
                     EDITS_FOLDER_ID: $${{ secrets.EDITS_FOLDER_ID }}
                     WEBHOOK_URL: $${{ secrets.WEBHOOK_URL }}
-                    TWITTER_API_KEY: $${{ secrets.TWITTER_API_KEY }}
-                    TWITTER_API_SECRET: $${{ secrets.TWITTER_API_SECRET }}
-                    TWITTER_ACCESS_TOKEN: $${{ secrets.TWITTER_ACCESS_TOKEN }}
-                    TWITTER_ACCESS_SECRET: $${{ secrets.TWITTER_ACCESS_SECRET }}
+                    X_API_KEY: $${{ secrets.X_API_KEY }}
+                    X_API_SECRET: $${{ secrets.X_API_SECRET }}
+                    X_ACCESS_TOKEN: $${{ secrets.X_ACCESS_TOKEN }}
+                    X_ACCESS_TOKEN_SECRET: $${{ secrets.X_ACCESS_TOKEN_SECRET }}
                     CLIP_DURATION_SEC: "20"
                     TEASER_DURATION_SEC: "180"
                     NUM_CLIPS: "3"
