@@ -208,8 +208,8 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
-          RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID }}
-          EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID }}
+          RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID || secrets.GOOGLE_RAW_FOLDER_ID }}
+          EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID || secrets.GOOGLE_EDITS_FOLDER_ID }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
           TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
