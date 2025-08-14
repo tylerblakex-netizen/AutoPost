@@ -17,6 +17,8 @@ name: Agent Trigger (Direct Execution)
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: agent-trigger
@@ -80,6 +82,11 @@ jobs:
 
       - name: Build
         run: mvn -q -DskipTests package
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ github.workspace }}/target/autopost.jar
 
       - name: Write service account file
         if: steps.config.outputs.mode == 'run'

@@ -8,6 +8,8 @@ name: CI (Build & Future Tests)
 
 permissions:
   contents: read
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -21,6 +23,11 @@ jobs:
           cache: maven
       - name: Build
         run: mvn -B -DskipTests package
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+        with:
+          subject-path: ${{ github.workspace }}/target/autopost.jar
       # Uncomment when tests exist
       # - name: Test
       #   run: mvn -B test
