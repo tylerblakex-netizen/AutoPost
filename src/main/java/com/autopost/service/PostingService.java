@@ -304,8 +304,11 @@ public class PostingService {
         UploadedMedia media = twitter.uploadMedia(video);
         mediaIds[0] = media.getMediaId();
         
+        // Clamp caption to respect X_MAX_LEN before posting
+        String clampedCaption = com.autopost.Utils.clampToMaxLen(caption);
+        
         // Post tweet with video
-        StatusUpdate status = new StatusUpdate(caption);
+        StatusUpdate status = new StatusUpdate(clampedCaption);
         status.setMediaIds(mediaIds);
         
         twitter.updateStatus(status);
