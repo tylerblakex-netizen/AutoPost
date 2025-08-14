@@ -1,6 +1,17 @@
 package com.autopost;
-public record Config(String openaiKey,String openaiModel,String rawFolderId,String editsFolderId,String webhookUrl,
-                     String saPath,String saInlineJson,String twApiKey,String twApiSecret,String twAccessToken,String twAccessSecret){
+public record Config(
+    String openaiKey,
+    String openaiModel,
+    String rawFolderId,
+    String editsFolderId,
+    String webhookUrl,
+    String saPath,
+    String saInlineJson,
+    String twApiKey,
+    String twApiSecret,
+    String twAccessToken,
+    String twAccessSecret
+) {
   public static Config loadFromEnv(){
     return new Config(req("OPENAI_API_KEY"), env("OPENAI_MODEL","gpt-4o-mini"),
       req("RAW_FOLDER_ID"), req("EDITS_FOLDER_ID"), env("WEBHOOK_URL",""),
