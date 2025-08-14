@@ -42,7 +42,7 @@ jobs:
       - name: Detect Maven project
         id: maven
         run: |
-          if [[ -n "$(git ls-files 'pom.xml')" ]]; then
+          if [[ -f pom.xml ]]; then
             echo "has_pom=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_pom=false" >> "$GITHUB_OUTPUT"
