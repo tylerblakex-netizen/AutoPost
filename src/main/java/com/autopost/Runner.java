@@ -1,20 +1,139 @@
 package com.autopost;
-import java.nio.file.*; import java.time.*; import java.util.*; import java.util.logging.Logger;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.*;
+import java.nio.file.*;
+import java.time.*;
+import java.util.*;
+
 public class Runner {
-  private static final Logger log=Logger.getLogger("AutoPost"); private static final ZoneId LONDON=ZoneId.of("Europe/London"); private static final Map<String,Integer> DOW=Map.of("Mon",0,"Tue",1,"Wed",2,"Thu",3,"Fri",4,"Sat",5,"Sun",6);
-  private boolean inBestSlot(){ Path p=Paths.get("best_slots.json"); if(!Files.exists(p)) return ZonedDateTime.now(LONDON).getHour()==9;
-    try{ var root=new com.fasterxml.jackson.databind.ObjectMapper().readTree(Files.readString(p)); var now=ZonedDateTime.now(LONDON); int d=now.getDayOfWeek().getValue()-1; int h=now.getHour(); for(var s: root.get("slots")) if(DOW.get(s.get("day").asText())==d && s.get("hour").asInt()==h) return true; return false; }catch(Exception e){ return true; } }
+  private static final ZoneId LONDON = ZoneId.of("Europe/London");
+  private static final ObjectMapper M = new ObjectMapper();
+
   public void run() throws Exception {
-    if(!inBestSlot()){ log.info("Not in best posting slot now. Skipping."); return; }
-    var cfg=Config.loadFromEnv(); var drive=new DriveService(cfg); var webhook=new WebhookPoster(cfg); var captions=new CaptionService(cfg); var twitter=new TwitterService(cfg); var video=new VideoProcessor();
-    var f=drive.listOldestVideo(cfg.rawFolderId()); if(f==null){ log.info("No files in RAW. Exiting."); return; } String fileId=(String)f.get("id"), fileName=(String)f.get("name");
-    String collab=Utils.parseCollabFromFilename(fileName); String handle=Utils.loadCollabHandle(collab);
-    Path src=Files.createTempFile("autopost_src_",".mp4"); drive.downloadFile(fileId,src);
-    var outs=video.makeClips(src); Path first=outs.get(0); Path clip1080=video.to1080p60(first,"clip_post.mp4");
-    int i=1; for(Path pth: outs){ String type=pth.getFileName().toString().contains("teaser")? "teaser":"clip"; String safe=FilenameUtil.buildName(collab,type,i++); drive.uploadFile(pth,cfg.editsFolderId(),safe); try{ Files.deleteIfExists(pth);}catch(Exception ignore){} }
-    var cap=captions.generate(fileName, handle!=null? handle: collab); String text=Utils.joinCaption(cap.caption(), cap.hashtags(), handle); String web=drive.ensureAnyoneView(fileId);
-    boolean posted=false; if(twitter.hasKeys()) try{ String url=twitter.tweetVideo(text,clip1080); posted=true; log.info("Tweet posted: "+url);}catch(Exception e){ log.warning("X posting failed: "+e.getMessage()); }
-    if(!posted && cfg.webhookUrl()!=null && !cfg.webhookUrl().isBlank()){ var payload=new java.util.LinkedHashMap<String,Object>(); payload.put("title",fileName); payload.put("drive_file_id",fileId); payload.put("drive_web_link",web); payload.put("caption",text); payload.put("hashtags",cap.hashtags()); payload.put("picked_at",java.time.Instant.now().toString()); webhook.post(payload); }
-    drive.moveTo(fileId, cfg.editsFolderId()); try{ Files.deleteIfExists(src);}catch(Exception ignore){} try{ Files.deleteIfExists(clip1080);}catch(Exception ignore){} log.info("Done.");
+    // Gate by best posting hour if available
+    if (!shouldPostNow()) {
+      System.out.println("Not in best posting slot now. Skipping.");
+      return;
+    }
+
+    Config cfg = Config.loadFromEnv();
+    DriveService drive = new DriveService(cfg);
+    CaptionService captions = new CaptionService(cfg);
+    TwitterService twitter = new TwitterService(cfg);
+    WebhookPoster webhook = new WebhookPoster(cfg);
+
+    // Find oldest video in RAW
+    Map<String, Object> f = drive.listOldestVideo(cfg.rawFolderId());
+    if (f == null) {
+      System.out.println("No videos found in RAW folder. Nothing to do.");
+      return;
+    }
+    String fileId = String.valueOf(f.get("id"));
+    String fileName = String.valueOf(f.get("name"));
+    System.out.println("Picked RAW file: " + fileName + " (" + fileId + ")");
+
+    // Infer collaborator
+    String collab = Utils.parseCollabFromFilename(fileName);
+    String handle = Utils.loadCollabHandle(collab);
+
+    // Download source
+    Path tmp = Paths.get(System.getProperty("java.io.tmpdir"));
+    Path src = tmp.resolve("source-" + fileId + ".mp4");
+    drive.downloadFile(fileId, src);
+
+    // Process
+    VideoProcessor vp = new VideoProcessor();
+    java.util.List<Path> cuts = vp.makeClips(src); // 3 clips + 1 teaser (last)
+
+    int clipIdx = 0;
+    java.util.List<Path> finals = new ArrayList<>();
+    Path teaserOut = null;
+    for (int i = 0; i < cuts.size(); i++) {
+      Path in = cuts.get(i);
+      boolean isTeaser = in.getFileName().toString().toLowerCase().contains("teaser");
+      String type = isTeaser ? "teaser" : "clip";
+      int index = isTeaser ? 1 : (++clipIdx);
+      String finalName = FilenameUtil.buildName(collab, type, index);
+      Path out1080 = vp.to1080p60(in, finalName);
+      finals.add(out1080);
+      if (isTeaser) teaserOut = out1080;
+    }
+
+    // Generate caption
+    CaptionService.Caption cap = captions.generate(fileName, handle != null ? handle : (collab == null ? "none" : collab));
+    String text = Utils.joinCaption(cap.caption(), cap.hashtags(), handle);
+
+    // Choose a file to post to X: first clip preferred; otherwise teaser
+    Path toPost = finals.stream().filter(p -> p.getFileName().toString().contains("_clip_"))
+        .findFirst().orElse(teaserOut);
+
+    String tweetUrl = null;
+    if (twitter.hasKeys() && toPost != null) {
+      try {
+        tweetUrl = twitter.tweetVideo(text, toPost);
+        System.out.println("Tweeted: " + tweetUrl);
+      } catch (Exception e) {
+        System.err.println("Tweet failed: " + e.getMessage());
+      }
+    } else {
+      System.out.println("Twitter keys missing or no file to post; skipping X posting.");
+    }
+
+    // Upload outputs to EDITS
+    java.util.List<String> uploaded = new ArrayList<>();
+    for (Path p : finals) {
+      try {
+        String id = drive.uploadFile(p, cfg.editsFolderId(), p.getFileName().toString());
+        uploaded.add(id);
+        System.out.println("Uploaded to EDITS: " + p.getFileName());
+      } catch (Exception e) {
+        System.err.println("Upload failed for " + p.getFileName() + ": " + e.getMessage());
+      }
+    }
+
+    // Move RAW into EDITS (archive)
+    try {
+      drive.moveTo(fileId, cfg.editsFolderId());
+      System.out.println("Moved RAW to EDITS.");
+    } catch (Exception e) {
+      System.err.println("Move RAW failed: " + e.getMessage());
+    }
+
+    // Optional webhook (none configured per user, but keep for future)
+    try {
+      Map<String, Object> payload = new LinkedHashMap<>();
+      payload.put("source", fileName);
+      payload.put("uploaded_count", uploaded.size());
+      payload.put("tweet", tweetUrl);
+      webhook.post(payload);
+    } catch (Exception ignore) {}
+  }
+
+  private boolean shouldPostNow() {
+    String force = System.getenv("FORCE_POST");
+    if (force != null && force.equalsIgnoreCase("true")) return true;
+    try {
+      Path f = Paths.get("best_slots.json");
+      if (!Files.exists(f)) return true; // no gating data yet
+      JsonNode root = M.readTree(Files.readAllBytes(f));
+      JsonNode slots = root.get("slots");
+      if (slots == null || !slots.isArray()) return true;
+      ZonedDateTime now = ZonedDateTime.now(LONDON);
+      String today = now.getDayOfWeek().toString().substring(0,3).substring(0,1).toUpperCase() + now.getDayOfWeek().toString().substring(1,3).toLowerCase();
+      int hourNow = now.getHour();
+      for (JsonNode s : slots) {
+        String day = s.get("day").asText();
+        int hour = s.get("hour").asInt();
+        if (today.equals(day)) {
+          return hourNow == hour;
+        }
+      }
+    } catch (Exception e) {
+      System.err.println("Gating read failed: " + e.getMessage());
+      return true;
+    }
+    return true;
   }
 }
