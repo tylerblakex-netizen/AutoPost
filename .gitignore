@@ -7,6 +7,10 @@ target/
 .settings/
 .DS_Store
 .env
+.env.*
+!.env.example
+*.pem
+*.keystore
 sa.json
 *.log
 dependency-reduced-pom.xml

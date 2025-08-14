@@ -35,6 +35,8 @@ env:
   TEASER_DURATION_SEC: "180"
   NUM_CLIPS: "3"
   SCENE_THRESHOLD: "0.4"
+  SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
+  SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
 
 jobs:
   analyze:
