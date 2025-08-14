@@ -26,7 +26,7 @@ jobs:
           # Required for normal runs
           REQUIRED_SECRETS: "OPENAI_API_KEY,GOOGLE_SERVICE_ACCOUNT_JSON,RAW_FOLDER_ID,EDITS_FOLDER_ID"
           # Optional (Discord webhook + X/Twitter creds)
-          OPTIONAL_SECRETS: "WEBHOOK_URL,TWITTER_API_KEY,TWITTER_API_SECRET,TWITTER_ACCESS_TOKEN,TWITTER_ACCESS_SECRET"
+          OPTIONAL_SECRETS: "WEBHOOK_URL,X_API_KEY,X_API_SECRET,X_ACCESS_TOKEN,X_ACCESS_TOKEN_SECRET"
           # Map from repo/org secrets (support GOOGLE_* -> RAW_/EDITS_ fallback)
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
@@ -36,8 +36,8 @@ jobs:
           GOOGLE_RAW_FOLDER_ID: ${{ secrets.GOOGLE_RAW_FOLDER_ID }}
           GOOGLE_EDITS_FOLDER_ID: ${{ secrets.GOOGLE_EDITS_FOLDER_ID }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
-          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
-          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
-          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-          TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
         run: bash .github/scripts/check_env.sh
