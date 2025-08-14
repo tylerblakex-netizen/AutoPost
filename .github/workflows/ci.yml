@@ -30,7 +30,8 @@ jobs:
         run: |
           set -euo pipefail
           LEFT="$(echo NVd4cDA1TjhKS003TVZDUjFXVzE= | base64 -d)"
-          RIGHT="$(echo dHVmVmtRdkk0Y3l4dmR0T2Q2MllOYTNR | base64 -d)"
+          LEFT="${LEAKED_TOKEN_PATTERN_LEFT}"
+          RIGHT="${LEAKED_TOKEN_PATTERN_RIGHT}"
           if git grep -n -E "${LEFT}|${RIGHT}" -- .; then
             echo "❌ Found a leaked token pattern. Purge it and re-run."
             exit 1
