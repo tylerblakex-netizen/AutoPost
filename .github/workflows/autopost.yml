@@ -23,6 +23,8 @@ name: AutoPost & Analyze
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: autopost
@@ -87,6 +89,11 @@ jobs:
       - if: steps.gate.outputs.should_run == 'true'
         name: Build (skip tests for speed)
         run: mvn -q -DskipTests package
+      - if: steps.gate.outputs.should_run == 'true'
+        name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ github.workspace }}/target/autopost.jar
       - if: steps.gate.outputs.should_run == 'true'
         name: Run analysis
         env:
@@ -197,6 +204,11 @@ jobs:
       - if: steps.gate.outputs.should_run == 'true'
         name: Build (skip tests)
         run: mvn -q -DskipTests package
+      - if: steps.gate.outputs.should_run == 'true'
+        name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ github.workspace }}/target/autopost.jar
       - if: steps.gate.outputs.should_run == 'true'
         name: Write service account file
         run: |
