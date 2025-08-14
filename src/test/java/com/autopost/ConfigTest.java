@@ -1,6 +1,7 @@
 package com.autopost;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
@@ -34,5 +35,16 @@ public class ConfigTest {
     assertEquals("edits-folder", cfg.editsFolderId());
     assertEquals("test-public", cfg.servicePublicId());
     assertEquals("test-secret", cfg.serviceSecretKey());
+  }
+  
+  @Test
+  void throwsExceptionWhenRequiredSystemPropertyMissing() {
+    System.clearProperty("SERVICE_PUBLIC_ID");
+    System.clearProperty("SERVICE_SECRET_KEY");
+    System.clearProperty("OPENAI_API_KEY");
+    System.clearProperty("RAW_FOLDER_ID");
+    System.clearProperty("EDITS_FOLDER_ID");
+    
+    assertThrows(RuntimeException.class, () -> Config.loadFromSystemProperties());
   }
 }
