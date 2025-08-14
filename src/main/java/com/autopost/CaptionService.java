@@ -22,6 +22,7 @@ Context:
     ObjectNode body=M.createObjectNode(); body.put("model",model);
     ArrayNode msgs=body.putArray("messages"); msgs.addObject().put("role","system").put("content",SYSTEM); msgs.addObject().put("role","user").put("content",user);
     body.put("temperature",0.7);
+    body.put("max_tokens",200); // Limit response length
     Request req=new Request.Builder().url("https://api.openai.com/v1/chat/completions").header("Authorization","Bearer "+apiKey)
       .post(RequestBody.create(M.writeValueAsBytes(body), MediaType.parse("application/json"))).build();
     try(Response resp=HTTP.newCall(req).execute()){
@@ -29,7 +30,11 @@ Context:
       var root=M.readTree(resp.body().bytes()); String text=root.at("/choices/0/message/content").asText().trim();
       var m=Pattern.compile("\\{[\\s\\S]*\\}").matcher(text); String json=m.find()? m.group(): text; var p=M.readTree(json);
       java.util.List<String> tags=new java.util.ArrayList<>(); if(p.has("hashtags") && p.get("hashtags").isArray()) for(JsonNode t: p.get("hashtags")){ if(tags.size()>=3) break; tags.add(t.asText().replace("#","").trim()); }
-      return new Caption(p.get("caption").asText(), tags);
+      String rawCaption=p.get("caption").asText();
+      // Sanitize caption: collapse whitespace, trim, and clamp to reasonable length for caption portion only
+      String cleanCaption=rawCaption.replaceAll("\\s+"," ").trim();
+      cleanCaption=Utils.clampToMaxLen(cleanCaption); // Apply overall limit as safety check
+      return new Caption(cleanCaption, tags);
     }
   }
 }
