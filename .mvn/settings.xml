@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+
+  <!-- Force Maven Central cleanly -->
+  <mirrors>
+    <mirror>
+      <id>central</id>
+      <name>Maven Central</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+  </mirrors>
+
+  <profiles>
+    <!-- Force repositories in case your parent POM/plugin repo is weird -->
+    <profile>
+      <id>force-central</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <repositories>
+        <repository>
+          <id>central</id>
+          <url>https://repo.maven.apache.org/maven2</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>central</id>
+          <url>https://repo.maven.apache.org/maven2</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+
+    <!-- Proxy profile: activates only when USE_PROXY env var is "true" -->
+    <profile>
+      <id>proxy-profile</id>
+      <activation>
+        <property>
+          <name>env.USE_PROXY</name>
+          <value>true</value>
+        </property>
+      </activation>
+      <properties>
+        <!-- optional, just placeholders -->
+      </properties>
+    </profile>
+  </profiles>
+
+  <!-- Proxies are evaluated globally; we gate them behind the profile via env variables -->
+  <proxies>
+    <proxy>
+      <id>env-proxy</id>
+      <active>${env.USE_PROXY}</active>
+      <protocol>http</protocol>
+      <host>${env.PROXY_HOST}</host>
+      <port>${env.PROXY_PORT}</port>
+      <username>${env.PROXY_USER}</username>
+      <password>${env.PROXY_PASS}</password>
+      <nonProxyHosts>${env.NO_PROXY_HOSTS}</nonProxyHosts>
+    </proxy>
+  </proxies>
+
+  <activeProfiles>
+    <activeProfile>force-central</activeProfile>
+    <!-- proxy-profile auto-activates only if USE_PROXY=true -->
+  </activeProfiles>
+</settings>
