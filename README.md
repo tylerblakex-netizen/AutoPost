@@ -33,6 +33,8 @@ AutoPost is an automated video processing and social media posting application t
    export OPENAI_API_KEY="your-openai-key"
    export RAW_FOLDER_ID="google-drive-folder-id"
    export EDITS_FOLDER_ID="google-drive-folder-id"
+   export SERVICE_PUBLIC_ID="your-service-public-id"
+   export SERVICE_SECRET_KEY="your-service-secret-key"
    
    # Google Drive authentication (choose one)
    export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
@@ -70,6 +72,8 @@ All configuration is done via environment variables:
 - `OPENAI_MODEL` - OpenAI model to use (default: gpt-4o-mini)
 - `RAW_FOLDER_ID` - Google Drive folder ID for raw videos (required)
 - `EDITS_FOLDER_ID` - Google Drive folder ID for processed videos (required)
+- `SERVICE_PUBLIC_ID` - public identifier for the external service (required)
+- `SERVICE_SECRET_KEY` - secret key used to authenticate with the service (required)
 
 ### Authentication
 - `GOOGLE_APPLICATION_CREDENTIALS` - Path to service account JSON file
