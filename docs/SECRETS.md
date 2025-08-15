@@ -19,3 +19,5 @@ The application expects the following environment variables:
 - TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET – X/Twitter credentials.
 
 Set these values using your environment or your platform's secret manager (e.g. GitHub Secrets). For local development, copy `.env.example` to `.env` and fill in your credentials.
+
+Never commit real credentials to the repository. The application only reads them from environment variables.
