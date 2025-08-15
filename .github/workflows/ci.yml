@@ -1,0 +1,63 @@
+name: CI (shellcheck + Gradle)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+# Minimal GitHub token scope (fixes the permissions warning)
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Validate wrapper BUT do NOT fail if wrapper jar isn't in repo
+      - name: Validate Gradle wrapper (tolerate missing)
+        uses: gradle/actions/wrapper-validation@v3
+        with:
+          min-wrapper-count: 0
+          allow-snapshots: false
+
+      # Install a specific Gradle version so we can run 'gradle' without ./gradlew
+      - name: Setup Gradle 8.10.1
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.10.1
+          cache-read-only: false
+
+      - name: Ensure scripts are executable
+        run: |
+          if [ -f .ci/shellcheck.sh ]; then chmod +x .ci/shellcheck.sh; fi
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Shellcheck
+        run: |
+          bash .ci/shellcheck.sh
+
+      # Run Gradle using the installed tool (no wrapper needed)
+      - name: Gradle build (spotless + build + jacoco)
+        if: ${{ hashFiles('settings.gradle*', 'build.gradle*') != '' }}
+        env:
+          SERVICE_PUBLIC_ID: ${{ vars.SERVICE_PUBLIC_ID }}
+          SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs='-Xmx2g -XX:+UseG1GC'"
+        run: |
+          gradle --version
+          gradle --stacktrace --no-daemon spotlessApply build jacocoTestReport
