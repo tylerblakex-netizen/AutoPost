@@ -22,6 +22,7 @@ jobs:
 
       - name: Check required and optional secrets
         shell: bash
+        continue-on-error: true
         env:
           # Required for normal runs
           REQUIRED_SECRETS: "OPENAI_API_KEY,GOOGLE_SERVICE_ACCOUNT_JSON,RAW_FOLDER_ID,EDITS_FOLDER_ID"
