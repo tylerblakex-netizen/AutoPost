@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+if ! command -v git >/dev/null 2>&1; then
+  echo "⚠️  git CLI not found. Please install git." >&2
+  exit 1
+fi
+
 REPO_SLUG="tylerblakex-netizen/AutoPost"
 WORKFLOW_FILE="${1:-ci.yml}"
 
