@@ -1,0 +1,17 @@
+name: Optional Service Check
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show status
+        env:
+          SERVICE_PUBLIC_ID: ${{ vars.SERVICE_PUBLIC_ID }}
+          SERVICE_SECRET_KEY: ${{ vars.SERVICE_SECRET_KEY }}
+        run: |
+          if [ -z "${SERVICE_PUBLIC_ID}" ] || [ -z "${SERVICE_SECRET_KEY}" ]; then
+            echo "Service: DISABLED (vars not set)."
+            exit 0
+          else
+            echo "Service: ENABLED (vars set)."
+          fi

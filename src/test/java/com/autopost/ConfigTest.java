@@ -27,6 +27,7 @@ public class ConfigTest {
     Config cfg = Config.loadFromSystemProperties();
     assertEquals("public", cfg.servicePublicId());
     assertEquals("secret", cfg.serviceSecretKey());
+    assertTrue(cfg.serviceEnabled());
   }
   
   @Test
@@ -46,17 +47,30 @@ public class ConfigTest {
     assertEquals("edits-folder", cfg.editsFolderId());
     assertEquals("test-public", cfg.servicePublicId());
     assertEquals("test-secret", cfg.serviceSecretKey());
+    assertTrue(cfg.serviceEnabled());
   }
   
   @Test
   void throwsExceptionWhenRequiredSystemPropertyMissing() {
-    System.clearProperty("SERVICE_PUBLIC_ID");
-    System.clearProperty("SERVICE_SECRET_KEY");
     System.clearProperty("OPENAI_API_KEY");
     System.clearProperty("RAW_FOLDER_ID");
     System.clearProperty("EDITS_FOLDER_ID");
     
     assertThrows(RuntimeException.class, () -> Config.loadFromSystemProperties());
+  }
+
+  @Test
+  void serviceCredentialsOptionalWhenNotProvided() {
+    System.setProperty("OPENAI_API_KEY", "test");
+    System.setProperty("RAW_FOLDER_ID", "raw");
+    System.setProperty("EDITS_FOLDER_ID", "edits");
+    System.clearProperty("SERVICE_PUBLIC_ID");
+    System.clearProperty("SERVICE_SECRET_KEY");
+
+    Config cfg = Config.loadFromSystemProperties();
+    assertEquals("", cfg.servicePublicId());
+    assertEquals("", cfg.serviceSecretKey());
+    assertFalse(cfg.serviceEnabled());
   }
   
   @Test

@@ -28,6 +28,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Notice (SERVICE_* no longer required)
+        shell: bash
+        env:
+          SERVICE_PUBLIC_ID: ${{ vars.SERVICE_PUBLIC_ID }}
+          SERVICE_SECRET_KEY: ${{ vars.SERVICE_SECRET_KEY }}
+        run: |
+          if [ -z "${SERVICE_PUBLIC_ID}" ] || [ -z "${SERVICE_SECRET_KEY}" ]; then
+            echo "::notice title=Service credentials not set::Skipping any steps that need SERVICE_PUBLIC_ID / SERVICE_SECRET_KEY."
+          else
+            echo "Service credentials provided via repo Variables."
+          fi
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Build with Jekyll
@@ -46,6 +57,17 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Notice (SERVICE_* no longer required)
+        shell: bash
+        env:
+          SERVICE_PUBLIC_ID: ${{ vars.SERVICE_PUBLIC_ID }}
+          SERVICE_SECRET_KEY: ${{ vars.SERVICE_SECRET_KEY }}
+        run: |
+          if [ -z "${SERVICE_PUBLIC_ID}" ] || [ -z "${SERVICE_SECRET_KEY}" ]; then
+            echo "::notice title=Service credentials not set::Skipping any steps that need SERVICE_PUBLIC_ID / SERVICE_SECRET_KEY."
+          else
+            echo "Service credentials provided via repo Variables."
+          fi
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
