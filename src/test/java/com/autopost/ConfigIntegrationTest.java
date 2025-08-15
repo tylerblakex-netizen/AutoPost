@@ -13,7 +13,7 @@ public class ConfigIntegrationTest {
     Config cfg = new Config(
         "test-key", "gpt-4o-mini", "raw", "edits", "", "", 
         "invalid json content", // invalid JSON
-        "", "", "", "", "public", "secret"
+        "", "", "", ""
     );
     
     // DriveService constructor should fail when trying to use invalid JSON
@@ -30,7 +30,7 @@ public class ConfigIntegrationTest {
     Config cfg = new Config(
         "test-key", "gpt-4o-mini", "raw", "edits", "", "", 
         "", // empty JSON
-        "", "", "", "", "public", "secret"
+        "", "", "", ""
     );
     
     // DriveService constructor should fail when no credentials are provided
@@ -48,7 +48,7 @@ public class ConfigIntegrationTest {
     Config cfg = new Config(
         "test-key", "gpt-4o-mini", "raw", "edits", "", "", 
         validJson, // valid JSON
-        "", "", "", "", "public", "secret"
+        "", "", "", ""
     );
     
     // hasInlineSA should return true without throwing
