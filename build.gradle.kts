@@ -1,92 +1,80 @@
-import java.net.URI
 plugins {
-    id("org.springframework.boot") version "3.2.0"
+    java
+    jacoco
+    checkstyle
+    pmd
+    id("com.diffplug.spotless") version "6.25.0"
+    id("org.springframework.boot") version "3.3.2" apply false
     id("io.spring.dependency-management") version "1.1.6"
-    `java`
-    `maven-publish`
 }
+
+group = "net.tylerblakex"
+version = "0.0.0-SNAPSHOT"
 
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
-    withJavadocJar()
-    withSourcesJar()
 }
-
-group = "com.autopost"
-version = "1.1.0"
 
 repositories {
     mavenCentral()
-    // If you consume private packages from GitHub Packages, uncomment and keep wildcards:
-    // maven {
-    //     url = uri("https://maven.pkg.github.com/tylerblakex-netizen/*")
-    //     credentials {
-    //         username = System.getenv("GITHUB_ACTOR") ?: ""
-    //         password = System.getenv("GITHUB_TOKEN") ?: ""
-    //     }
-    // }
+    google()
+    gradlePluginPortal()
+    mavenLocal()
 }
 
-/*
- * ===== Dependencies (auto-converted from pom.xml) =====
- * Rules:
- * - For Spring Boot-managed artifacts (e.g., spring-boot-starter-*), omit versions.
- * - Map Maven scopes:
- *     compile → implementation
- *     runtime → runtimeOnly
- *     provided → compileOnly
- *     test → testImplementation
- * - Preserve any explicitly pinned versions that are NOT managed by Spring BOM.
- */
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("jakarta.annotation:jakarta.annotation-api:2.1.1")
-    implementation("com.google.apis:google-api-services-drive:v3-rev20250723-2.0.0")
-    implementation("com.google.auth:google-auth-library-oauth2-http:1.23.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.3.2"))
+    implementation("org.springframework.boot:spring-boot-starter")
+    // implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("org.twitter4j:twitter4j-core:4.0.7")
-    implementation("org.threeten:threetenbp:1.6.8")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 
 tasks.test {
     useJUnitPlatform()
 }
 
+checkstyle {
+    toolVersion = "10.17.0"
+    isShowViolations = true
+}
+
+pmd {
+    toolVersion = "6.55.0"
+    isConsoleOutput = true
+    ruleSets = listOf("category/java/bestpractices.xml", "category/java/errorprone.xml")
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+spotless {
+    java {
+        googleJavaFormat()
+        target("**/*.java")
+    }
+}
+
+tasks.register("staticChecks") {
+    group = "verification"
+    description = "Run Checkstyle and PMD on main and test sources"
+    dependsOn("checkstyleMain", "checkstyleTest", "pmdMain", "pmdTest")
+}
+
+tasks.named("build") {
+    dependsOn("spotlessApply", "staticChecks")
+}
+
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
-}
-tasks.withType<Javadoc> {
-    options.encoding = "UTF-8"
+    options.compilerArgs.add("-parameters")
 }
 
-springBoot {
-    // Set if MAIN_CLASS was detected; otherwise omit.
-    // MAIN_CLASS is the @SpringBootApplication entrypoint.
-    // Remove this block if not resolvable.
-    mainClass.set("com.autopost.AutoPostApplication")
-}
-
-
-publishing {
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = URI("https://maven.pkg.github.com/" + System.getenv("GITHUB_REPOSITORY"))
-            credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: (findProperty("gpr.user") as String?)
-                password = System.getenv("GITHUB_TOKEN") ?: (findProperty("gpr.key") as String?)
-            }
-        }
-    }
-    publications {
-        create<MavenPublication>("gpr") {
-            from(components.findByName("java") ?: components.first())
-            // groupId / artifactId / version will come from your project settings
-        }
-    }
+tasks.register("classesOnly") {
+    dependsOn("classes")
 }
