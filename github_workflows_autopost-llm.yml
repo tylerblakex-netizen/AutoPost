@@ -9,23 +9,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      
+
       - uses: actions/setup-java@v4
-        with: 
+        with:
           distribution: temurin
           java-version: "17"
-      
+
       - name: Build
         run: mvn -q -DskipTests package
-      
+
       - name: Write service account file
         run: echo "$GOOGLE_SERVICE_ACCOUNT_JSON" > sa.json
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-      
+
       - name: Run Application
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -36,12 +36,14 @@ jobs:
           TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
           TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
+          SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
         run: |
           java -jar target/autopost.jar &
           APP_PID=$!
           sleep 300  # Run for 5 minutes to allow scheduling
           kill $APP_PID || true
-      
+
       - name: Commit state files
         run: |
           git config user.name "autopost-bot"
