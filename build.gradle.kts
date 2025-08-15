@@ -1,3 +1,4 @@
+import java.net.URI
 plugins {
     id("org.springframework.boot") version "3.2.0"
     id("io.spring.dependency-management") version "1.1.6"
@@ -70,30 +71,22 @@ springBoot {
     mainClass.set("com.autopost.AutoPostApplication")
 }
 
-/*
- * ===== Publishing to GitHub Packages =====
- * Publishes plain Java components (jar + sources + javadoc).
- * spring-boot:bootJar still builds the runnable app jar for releases.
- */
+
 publishing {
-    publications {
-        create<MavenPublication>("gpr") {
-            from(components["java"])
-            pom {
-                name.set("AutoPost")
-                description.set("Auto posting utilities / app")
-                url.set("https://github.com/tylerblakex-netizen/AutoPost")
-            }
-        }
-    }
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/tylerblakex-netizen/AutoPost")
+            url = URI("https://maven.pkg.github.com/" + System.getenv("GITHUB_REPOSITORY"))
             credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: ""
-                password = System.getenv("GITHUB_TOKEN") ?: ""
+                username = System.getenv("GITHUB_ACTOR") ?: (findProperty("gpr.user") as String?)
+                password = System.getenv("GITHUB_TOKEN") ?: (findProperty("gpr.key") as String?)
             }
+        }
+    }
+    publications {
+        create<MavenPublication>("gpr") {
+            from(components.findByName("java") ?: components.first())
+            // groupId / artifactId / version will come from your project settings
         }
     }
 }
