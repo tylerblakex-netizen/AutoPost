@@ -2,8 +2,8 @@ name: Build & Publish (Gradle + GH Packages)
 
 on:
   push:
-    branches: [ main ]
-    tags: ["v*"]    # e.g. v1.0.0
+    branches: [ "main" ]
+    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -14,8 +14,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
+      # app secrets required by your code/tests
       SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
       SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
+      # network & gradle stability
+      GRADLE_OPTS: >-
+        -Dorg.gradle.jvmargs="-Xmx2g -Djava.net.preferIPv4Stack=true"
+        -Dorg.gradle.parallel=true
+        -Dorg.gradle.caching=true
+        -Dorg.gradle.daemon=false
+      MAVEN_OPTS: >-
+        -Djava.net.preferIPv4Stack=true
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,15 +39,44 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: 8.9
           cache-disabled: true
+          gradle-version: 8.9
 
-      - name: Build (unit + integration tests)
-        run: gradle build --no-daemon
+      - name: Fail fast if required secrets are missing
+        run: |
+          miss=""
+          [ -z "${SERVICE_PUBLIC_ID}" ] && miss="${miss} SERVICE_PUBLIC_ID"
+          [ -z "${SERVICE_SECRET_KEY}" ] && miss="${miss} SERVICE_SECRET_KEY"
+          if [ -n "$miss" ]; then
+            echo "::error::Missing required secrets:${miss}"
+            exit 1
+          fi
 
-      - name: Publish to GitHub Packages
+      - name: Configure Gradle credentials for GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo "gpr.user=${{ github.actor }}"
+            echo "gpr.key=${GITHUB_TOKEN}"
+          } >> ~/.gradle/gradle.properties
+
+      - name: Verify Gradle entrypoint
+        id: gradle_bin
+        run: |
+          if [ -x "./gradlew" ]; then
+            echo "bin=./gradlew" >> $GITHUB_OUTPUT
+          else
+            echo "bin=gradle" >> $GITHUB_OUTPUT
+          fi
+          echo "Using $(cat $GITHUB_OUTPUT | cut -d= -f2)"
+
+      - name: Build (tests)
+        run: ${{ steps.gradle_bin.outputs.bin }} build --no-daemon --stacktrace --info
+
+      - name: Publish to GitHub Packages (main or tag)
         if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_ACTOR: ${{ github.actor }}
-        run: gradle publish --no-daemon
+        run: ${{ steps.gradle_bin.outputs.bin }} publish --no-daemon --stacktrace --info
