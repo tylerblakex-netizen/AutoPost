@@ -60,4 +60,23 @@ public class ConfigTest {
     Config cfg = Config.loadFromSystemProperties();
     assertEquals("test-access-secret", cfg.twAccessSecret());
   }
+  
+  @Test
+  void loadsAllXVariablesFromNewNamingConvention() {
+    System.setProperty("OPENAI_API_KEY", "test-key");
+    System.setProperty("RAW_FOLDER_ID", "raw-folder");
+    System.setProperty("EDITS_FOLDER_ID", "edits-folder");
+    System.setProperty("SERVICE_PUBLIC_ID", "test-public");
+    System.setProperty("SERVICE_SECRET_KEY", "test-secret");
+    System.setProperty("X_API_KEY", "test-api-key");
+    System.setProperty("X_API_SECRET", "test-api-secret");
+    System.setProperty("X_ACCESS_TOKEN", "test-access-token");
+    System.setProperty("X_ACCESS_TOKEN_SECRET", "test-access-secret");
+    
+    Config cfg = Config.loadFromSystemProperties();
+    assertEquals("test-api-key", cfg.twApiKey());
+    assertEquals("test-api-secret", cfg.twApiSecret());
+    assertEquals("test-access-token", cfg.twAccessToken());
+    assertEquals("test-access-secret", cfg.twAccessSecret());
+  }
 }
