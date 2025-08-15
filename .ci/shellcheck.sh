@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+for cmd in git shellcheck; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "Error: command not found: $cmd" >&2
+    exit 1
+  fi
+done
+
 # Find all shell scripts tracked by git except gradlew and .git internals
 set +e
 mapfile -t FILES < <(git ls-files '*.sh' ':!:gradlew' ':!:.git/*')
