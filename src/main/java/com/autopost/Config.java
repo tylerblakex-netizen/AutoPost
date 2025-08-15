@@ -1,4 +1,5 @@
 package com.autopost;
+import com.fasterxml.jackson.databind.ObjectMapper;
 public record Config(
     String openaiKey,
     String openaiModel,
@@ -33,6 +34,23 @@ public record Config(
   static String req(String k){ var v=System.getenv(k); if(v==null||v.isBlank()) throw new RuntimeException(k+" is required"); return v; }
   static String propWithDefault(String k,String d){ var v=System.getProperty(k); return v==null||v.isBlank()?d:v; }
   static String reqProp(String k){ var v=System.getProperty(k); if(v==null||v.isBlank()) throw new RuntimeException(k+" is required"); return v; }
-  public boolean hasInlineSA(){ return saInlineJson()!=null && !saInlineJson().isBlank(); }
+  
+  private static boolean isValidJson(String json) {
+    if (json == null || json.isBlank()) return false;
+    try {
+      new ObjectMapper().readTree(json);
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+  
+  public boolean hasInlineSA(){ 
+    if (saInlineJson() == null || saInlineJson().isBlank()) return false;
+    if (!isValidJson(saInlineJson())) {
+      throw new RuntimeException("GOOGLE_SERVICE_ACCOUNT_JSON contains invalid JSON format");
+    }
+    return true;
+  }
   public boolean hasSAPath(){ return saPath()!=null && !saPath().isBlank(); }
 }
