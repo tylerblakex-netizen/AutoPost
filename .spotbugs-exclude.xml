@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <!-- Ignore generated or test code -->
+  <Match>
+    <Or>
+      <Package name="~.*\.generated(\..*)?"/>
+      <Package name="~.*\.build(\..*)?"/>
+      <Package name="~.*\.test(\..*)?"/>
+    </Or>
+  </Match>
+
+  <!-- Lombok / records / nullability false-positives -->
+  <Match>
+    <Bug code="NP,RCN,URF,UWF,SE_NO_SERIALVERSIONID"/>
+  </Match>
+</FindBugsFilter>
