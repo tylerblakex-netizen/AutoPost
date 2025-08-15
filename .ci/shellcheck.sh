@@ -9,7 +9,7 @@ set -e
 
 # Exit on real git error (not “no files”)
 if [[ $GIT_EC -ne 0 && $GIT_EC -ne 1 ]]; then
-  echo "git ls-files failed with exit code $GIT_EC"
+  echo "git ls-files failed with exit code $GIT_EC" >&2
   exit $GIT_EC
 fi
 
