@@ -11,10 +11,10 @@ if [ -d .github/workflows ]; then
   fi
 fi
 
-# --- 2) Sanity: ensure nothing remains ---
-if git grep -nE 'SERVICE_(PUBLIC_ID|SECRET_KEY)' -- . >/dev/null 2>&1; then
+# --- 2) Sanity: ensure nothing remains (excluding this script) ---
+if git grep -nE 'SERVICE_(PUBLIC_ID|SECRET_KEY)' -- . -- ':!purge-service-secrets.sh' >/dev/null 2>&1; then
   echo "❌ Still found SERVICE_* references:"
-  git grep -nE 'SERVICE_(PUBLIC_ID|SECRET_KEY)' -- .
+  git grep -nE 'SERVICE_(PUBLIC_ID|SECRET_KEY)' -- . -- ':!purge-service-secrets.sh'
   exit 1
 fi
 echo "✅ No SERVICE_* references left."
