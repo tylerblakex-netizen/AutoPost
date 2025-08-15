@@ -20,6 +20,11 @@ REF="${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD)}"
 echo "Dispatching workflow '${WF_PATH}' on ${REPO}@${REF}"
 gh auth status || gh auth login --with-token <<<"${GITHUB_TOKEN}"
 
+if ! gh workflow view "${WF_PATH}" --repo "${REPO}" >/dev/null 2>&1; then
+  echo "ERROR: Workflow '${WF_PATH}' not found in repo '${REPO}' or token lacks permissions to read it."
+  exit 1
+fi
+
 gh workflow run "${WF_PATH}" --repo "${REPO}" --ref "${REF}" || {
   echo "WARNING: gh workflow run returned non-zero. This can happen if the workflow is the current one or lacks permissions."
   exit 0
