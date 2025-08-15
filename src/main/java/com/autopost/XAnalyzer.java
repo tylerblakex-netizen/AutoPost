@@ -3,7 +3,7 @@ import twitter4j.*; import java.io.*; import java.time.*; import java.util.*; im
 public class XAnalyzer {
   private static final ZoneId LONDON=ZoneId.of("Europe/London"); private static final String[] DAYS={"Mon","Tue","Wed","Thu","Fri","Sat","Sun"}; private static final ObjectMapper M=new ObjectMapper();
   public void run() throws Exception {
-    var cfg=Config.loadFromEnv(); var t=TwitterFactory.getSingleton(); t.setOAuthConsumer(cfg.twApiKey(),cfg.twApiSecret()); t.setOAuthAccessToken(new twitter4j.auth.AccessToken(cfg.twAccessToken(),cfg.twAccessSecret()));
+    var cfg=Config.loadFromEnv(); var t=TwitterFactory.getSingleton(); t.setOAuthConsumer(cfg.xApiKey(),cfg.xApiSecret()); t.setOAuthAccessToken(new twitter4j.auth.AccessToken(cfg.xAccessToken(),cfg.xAccessSecret()));
     java.util.List<Status> tweets=new java.util.ArrayList<>(); long max=-1L; for(int page=0; page<8; page++){ Paging p=new Paging(page+1,200); if(max>0) p.setMaxId(max-1); var batch=t.getUserTimeline(t.getScreenName(),p); if(batch==null||batch.isEmpty()) break; tweets.addAll(batch); max=batch.get(batch.size()-1).getId(); }
     Map<Integer,Map<Integer,double[]>> b=new HashMap<>(); for(int d=0; d<7; d++){ b.put(d,new HashMap<>()); for(int h=0; h<24; h++) b.get(d).put(h,new double[]{0,0}); }
     for(Status s: tweets){ if(s.isRetweet()) continue; var z=s.getCreatedAt().toInstant().atZone(LONDON); int d=z.getDayOfWeek().getValue()-1; int h=z.getHour(); double eng=s.getFavoriteCount()+s.getRetweetCount(); var cell=b.get(d).get(h); cell[0]+=1; cell[1]+=eng; }

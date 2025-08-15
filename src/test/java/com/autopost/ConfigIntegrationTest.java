@@ -11,9 +11,9 @@ public class ConfigIntegrationTest {
   void driveServiceThrowsRuntimeExceptionWithInvalidJson() {
     // Create config with invalid JSON for service account
     Config cfg = new Config(
-        "test-key", "gpt-4o-mini", "raw", "edits", "", "", 
+        "test-key", "", "gpt-4o-mini", "raw", "edits", "", 
         "invalid json content", // invalid JSON
-        "", "", "", "", "public", "secret"
+        "", "", "", ""
     );
     
     // DriveService constructor should fail when trying to use invalid JSON
@@ -28,9 +28,9 @@ public class ConfigIntegrationTest {
   void driveServiceThrowsRuntimeExceptionWithNoCredentials() {
     // Create config with no credentials
     Config cfg = new Config(
-        "test-key", "gpt-4o-mini", "raw", "edits", "", "", 
+        "test-key", "", "gpt-4o-mini", "raw", "edits", "", 
         "", // empty JSON
-        "", "", "", "", "public", "secret"
+        "", "", "", ""
     );
     
     // DriveService constructor should fail when no credentials are provided
@@ -46,9 +46,9 @@ public class ConfigIntegrationTest {
     // Create config with valid JSON
     String validJson = "{\"type\": \"service_account\", \"project_id\": \"test\"}";
     Config cfg = new Config(
-        "test-key", "gpt-4o-mini", "raw", "edits", "", "", 
+        "test-key", "", "gpt-4o-mini", "raw", "edits", "", 
         validJson, // valid JSON
-        "", "", "", "", "public", "secret"
+        "", "", "", ""
     );
     
     // hasInlineSA should return true without throwing
