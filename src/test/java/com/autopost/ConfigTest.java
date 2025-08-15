@@ -47,4 +47,17 @@ public class ConfigTest {
     
     assertThrows(RuntimeException.class, () -> Config.loadFromSystemProperties());
   }
+  
+  @Test
+  void loadsXAccessTokenSecretFromNewEnvironmentVariableName() {
+    System.setProperty("OPENAI_API_KEY", "test-key");
+    System.setProperty("RAW_FOLDER_ID", "raw-folder");
+    System.setProperty("EDITS_FOLDER_ID", "edits-folder");
+    System.setProperty("SERVICE_PUBLIC_ID", "test-public");
+    System.setProperty("SERVICE_SECRET_KEY", "test-secret");
+    System.setProperty("X_ACCESS_TOKEN_SECRET", "test-access-secret");
+    
+    Config cfg = Config.loadFromSystemProperties();
+    assertEquals("test-access-secret", cfg.twAccessSecret());
+  }
 }
