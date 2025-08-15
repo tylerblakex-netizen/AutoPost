@@ -6,7 +6,7 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
-REPO_SLUG="tylerblakex-netizen/AutoPost"
+REPO_SLUG="${GITHUB_REPOSITORY:-tylerblakex-netizen/AutoPost}"
 WORKFLOW_FILE="${1:-ci.yml}"
 
 # Determine current branch (works locally and in CI)
