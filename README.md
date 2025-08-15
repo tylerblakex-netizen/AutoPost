@@ -43,7 +43,7 @@ AutoPost is an automated video processing and social media posting application t
    export TWITTER_API_KEY="your-api-key"
    export TWITTER_API_SECRET="your-api-secret"
    export TWITTER_ACCESS_TOKEN="your-access-token" 
-   export TWITTER_ACCESS_SECRET="your-access-secret"
+   export X_ACCESS_TOKEN_SECRET="your-access-secret"
    
    # Webhook alternative (optional)
    export WEBHOOK_URL="https://your-webhook-endpoint.com"
@@ -76,7 +76,7 @@ All configuration is done via environment variables:
 - `GOOGLE_SERVICE_ACCOUNT_JSON` - Service account JSON content as string
 
 ### Social Media
-- `TWITTER_API_KEY`, `TWITTER_API_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_SECRET` - X/Twitter credentials
+- `TWITTER_API_KEY`, `TWITTER_API_SECRET`, `TWITTER_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET` - X/Twitter credentials
 - `WEBHOOK_URL` - Alternative webhook endpoint for posting
 
 ### Video Processing
