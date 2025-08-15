@@ -16,6 +16,6 @@ The application expects the following environment variables:
 ### Optional
 
 - `WEBHOOK_URL` – Discord webhook for status updates.
-- `TWITTER_API_KEY`, `TWITTER_API_SECRET`, `TWITTER_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET` – X/Twitter credentials.
+- TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET – X/Twitter credentials.
 
 Set these values using your environment or your platform's secret manager (e.g. GitHub Secrets). For local development, copy `.env.example` to `.env` and fill in your credentials.
