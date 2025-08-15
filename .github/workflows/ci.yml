@@ -36,7 +36,6 @@ jobs:
             exit 1
           fi
           echo "✅ No leaked token patterns found."
-
       # 🧑‍🔧 Detect whether this is a Maven project
       - name: Detect Maven project
         id: maven
