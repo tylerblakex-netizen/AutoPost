@@ -12,9 +12,19 @@ public class ConfigTest {
   
   @BeforeEach
   void clearEnvironment() {
-    // Clear all relevant environment properties before each test
-    System.clearProperty("GOOGLE_SERVICE_ACCOUNT_JSON");
-    System.clearProperty("GOOGLE_APPLICATION_CREDENTIALS");
+      // Clear all relevant environment properties before each test
+      System.clearProperty("GOOGLE_SERVICE_ACCOUNT_JSON");
+      System.clearProperty("GOOGLE_APPLICATION_CREDENTIALS");
+      System.clearProperty("OPENAI_API_KEY");
+      System.clearProperty("RAW_FOLDER_ID");
+      System.clearProperty("EDITS_FOLDER_ID");
+      System.clearProperty("SERVICE_PUBLIC_ID");
+      System.clearProperty("SERVICE_SECRET_KEY");
+      System.clearProperty("X_ACCESS_TOKEN_SECRET");
+      System.clearProperty("TWITTER_API_KEY");
+      System.clearProperty("TWITTER_API_SECRET");
+      System.clearProperty("TWITTER_ACCESS_TOKEN");
+      System.clearProperty("WEBHOOK_URL");
   }
   
   @Test
@@ -27,6 +37,7 @@ public class ConfigTest {
     Config cfg = Config.loadFromSystemProperties();
     assertEquals("public", cfg.servicePublicId());
     assertEquals("secret", cfg.serviceSecretKey());
+    assertTrue(cfg.serviceEnabled());
   }
   
   @Test
@@ -46,17 +57,25 @@ public class ConfigTest {
     assertEquals("edits-folder", cfg.editsFolderId());
     assertEquals("test-public", cfg.servicePublicId());
     assertEquals("test-secret", cfg.serviceSecretKey());
+    assertTrue(cfg.serviceEnabled());
   }
   
   @Test
   void throwsExceptionWhenRequiredSystemPropertyMissing() {
-    System.clearProperty("SERVICE_PUBLIC_ID");
-    System.clearProperty("SERVICE_SECRET_KEY");
     System.clearProperty("OPENAI_API_KEY");
-    System.clearProperty("RAW_FOLDER_ID");
-    System.clearProperty("EDITS_FOLDER_ID");
-    
-    assertThrows(RuntimeException.class, () -> Config.loadFromSystemProperties());
+    System.setProperty("RAW_FOLDER_ID", "raw");
+    System.setProperty("EDITS_FOLDER_ID", "edits");
+    assertThrows(RuntimeException.class, Config::loadFromSystemProperties);
+  }
+
+  @Test
+  void serviceCredentialsOptional() {
+    System.setProperty("OPENAI_API_KEY", "test");
+    System.setProperty("RAW_FOLDER_ID", "raw");
+    System.setProperty("EDITS_FOLDER_ID", "edits");
+    // Do not set SERVICE_PUBLIC_ID or SERVICE_SECRET_KEY
+    Config cfg = Config.loadFromSystemProperties();
+    assertFalse(cfg.serviceEnabled());
   }
   
   @Test

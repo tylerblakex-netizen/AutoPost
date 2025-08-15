@@ -10,11 +10,11 @@ The application expects the following environment variables:
 - One of the following is required for Google API access:
   - GOOGLE_SERVICE_ACCOUNT_JSON – inline JSON credentials.
   - GOOGLE_APPLICATION_CREDENTIALS – path to a service account JSON file.
-- `SERVICE_PUBLIC_ID` – public identifier for the external service.
-- `SERVICE_SECRET_KEY` – secret key used to authenticate with the service.
 
 ### Optional
 
+- `SERVICE_PUBLIC_ID` – public identifier for the external service.
+- `SERVICE_SECRET_KEY` – secret key used to authenticate with the service.
 - `WEBHOOK_URL` – Discord webhook for status updates.
 - TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET – X/Twitter credentials.
 

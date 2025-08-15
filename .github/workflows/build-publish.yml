@@ -2,8 +2,8 @@ name: Build & Publish (Gradle + GH Packages)
 
 on:
   push:
-    branches: [ main ]
-    tags: ["v*"]    # e.g. v1.0.0
+    branches: [ "main" ]
+    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -13,9 +13,20 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     env:
-      SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
-      SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
+      SERVICE_PUBLIC_ID: ${{ vars.SERVICE_PUBLIC_ID }}
+      SERVICE_SECRET_KEY: ${{ vars.SERVICE_SECRET_KEY }}
+
+      # Network & Gradle stability
+      GRADLE_OPTS: >-
+        -Dorg.gradle.jvmargs="-Xmx2g -Djava.net.preferIPv4Stack=true"
+        -Dorg.gradle.parallel=true
+        -Dorg.gradle.caching=true
+        -Dorg.gradle.daemon=false
+      MAVEN_OPTS: >-
+        -Djava.net.preferIPv4Stack=true
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,15 +40,46 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: 8.9
           cache-disabled: true
+          gradle-version: 8.9
 
-      - name: Build (unit + integration tests)
-        run: gradle build --no-daemon
+      - name: Notice (SERVICE_* no longer required)
+        shell: bash
+        env:
+          SERVICE_PUBLIC_ID: ${{ vars.SERVICE_PUBLIC_ID }}
+          SERVICE_SECRET_KEY: ${{ vars.SERVICE_SECRET_KEY }}
+        run: |
+          if [ -z "${SERVICE_PUBLIC_ID}" ] || [ -z "${SERVICE_SECRET_KEY}" ]; then
+            echo "::notice title=Service credentials not set::Skipping any steps that need SERVICE_PUBLIC_ID / SERVICE_SECRET_KEY."
+          else
+            echo "Service credentials provided via repo Variables."
+          fi
 
-      - name: Publish to GitHub Packages
+      - name: Configure Gradle credentials for GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo "gpr.user=${{ github.actor }}"
+            echo "gpr.key=${GITHUB_TOKEN}"
+          } >> ~/.gradle/gradle.properties
+
+      - name: Verify Gradle entrypoint
+        id: gradle_bin
+        run: |
+          if [ -x "./gradlew" ]; then
+            echo "bin=./gradlew" >> $GITHUB_OUTPUT
+          else
+            echo "bin=gradle" >> $GITHUB_OUTPUT
+          fi
+          echo "Using $(cut -d= -f2 $GITHUB_OUTPUT)"
+
+      - name: Build (tests)
+        run: ${{ steps.gradle_bin.outputs.bin }} build --no-daemon --stacktrace --info
+
+      - name: Publish to GitHub Packages (main or tag)
         if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_ACTOR: ${{ github.actor }}
-        run: gradle publish --no-daemon
+        run: ${{ steps.gradle_bin.outputs.bin }} publish --no-daemon --stacktrace --info

@@ -11,36 +11,48 @@ permissions:
   contents: read
 
 jobs:
-  check-env:
-    # Skip on forked PRs where repository secrets are unavailable
-    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
-    runs-on: ubuntu-latest
+    check-env:
+      # Skip on forked PRs where repository secrets are unavailable
+      if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+      runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
 
-      - name: Check required and optional secrets
-        shell: bash
-        continue-on-error: true
-        env:
-          # Required for normal runs
-          REQUIRED_SECRETS: "OPENAI_API_KEY,GOOGLE_SERVICE_ACCOUNT_JSON,RAW_FOLDER_ID,EDITS_FOLDER_ID,SERVICE_PUBLIC_ID,SERVICE_SECRET_KEY"
-          # Optional (Discord webhook + X/Twitter creds)
-          OPTIONAL_SECRETS: "WEBHOOK_URL,TWITTER_API_KEY,TWITTER_API_SECRET,TWITTER_ACCESS_TOKEN,X_ACCESS_TOKEN_SECRET"
-          # Map from repo/org secrets (support GOOGLE_* -> RAW_/EDITS_ fallback)
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID || secrets.GOOGLE_RAW_FOLDER_ID }}
-          EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID || secrets.GOOGLE_EDITS_FOLDER_ID }}
-          SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
-          SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
-          # Expose GOOGLE_* explicitly (useful for debugging)
-          GOOGLE_RAW_FOLDER_ID: ${{ secrets.GOOGLE_RAW_FOLDER_ID }}
-          GOOGLE_EDITS_FOLDER_ID: ${{ secrets.GOOGLE_EDITS_FOLDER_ID }}
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
-          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
-          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
-          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
-        run: bash .github/scripts/check_env.sh
+        - name: Notice (SERVICE_* no longer required)
+          shell: bash
+          env:
+            SERVICE_PUBLIC_ID: ${{ vars.SERVICE_PUBLIC_ID }}
+            SERVICE_SECRET_KEY: ${{ vars.SERVICE_SECRET_KEY }}
+          run: |
+            if [ -z "${SERVICE_PUBLIC_ID}" ] || [ -z "${SERVICE_SECRET_KEY}" ]; then
+              echo "::notice title=Service credentials not set::Skipping any steps that need SERVICE_PUBLIC_ID / SERVICE_SECRET_KEY."
+            else
+              echo "Service credentials provided via repo Variables."
+            fi
+
+        - name: Check required and optional secrets
+          shell: bash
+          continue-on-error: true
+          env:
+            # Required for normal runs
+            REQUIRED_SECRETS: "OPENAI_API_KEY,GOOGLE_SERVICE_ACCOUNT_JSON,RAW_FOLDER_ID,EDITS_FOLDER_ID"
+            # Optional (Discord webhook + X/Twitter creds + service creds)
+            OPTIONAL_SECRETS: "WEBHOOK_URL,TWITTER_API_KEY,TWITTER_API_SECRET,TWITTER_ACCESS_TOKEN,X_ACCESS_TOKEN_SECRET,SERVICE_PUBLIC_ID,SERVICE_SECRET_KEY"
+            # Map from repo/org secrets (support GOOGLE_* -> RAW_/EDITS_ fallback)
+            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+            GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+            RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID || secrets.GOOGLE_RAW_FOLDER_ID }}
+            EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID || secrets.GOOGLE_EDITS_FOLDER_ID }}
+            # Expose GOOGLE_* explicitly (useful for debugging)
+            GOOGLE_RAW_FOLDER_ID: ${{ secrets.GOOGLE_RAW_FOLDER_ID }}
+            GOOGLE_EDITS_FOLDER_ID: ${{ secrets.GOOGLE_EDITS_FOLDER_ID }}
+            WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+            TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+            TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+            TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+            X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+            SERVICE_PUBLIC_ID: ${{ vars.SERVICE_PUBLIC_ID }}
+            SERVICE_SECRET_KEY: ${{ vars.SERVICE_SECRET_KEY }}
+          run: bash .github/scripts/check_env.sh

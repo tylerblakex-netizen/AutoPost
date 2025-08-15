@@ -81,12 +81,18 @@ All configuration is done via environment variables:
 
 ### Video Processing
 - `FFMPEG_PATH` - Path to ffmpeg binary (default: ffmpeg)
-- `FFPROBE_PATH` - Path to ffprobe binary (default: ffprobe) 
+- `FFPROBE_PATH` - Path to ffprobe binary (default: ffprobe)
 - `FFMPEG_TEMP_DIR` - Temporary directory for video processing
 - `SCENE_THRESHOLD` - Scene detection sensitivity (default: 0.4)
 - `CLIP_DURATION_SEC` - Length of short clips in seconds (default: 20)
 - `TEASER_DURATION_SEC` - Length of teaser clip in seconds (default: 180)
 - `NUM_CLIPS` - Number of short clips to generate (default: 3)
+
+### Optional external service
+This project previously required `SERVICE_PUBLIC_ID` and `SERVICE_SECRET_KEY`. They’re now **optional**:
+- CI/CD never requires them.
+- If you add repo **Variables** with those names, deploy/integration steps will auto-enable.
+- If omitted, those steps skip and the app runs with a no-op client.
 
 ## Requirements
 
