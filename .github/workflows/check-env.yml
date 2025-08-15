@@ -25,7 +25,7 @@ jobs:
         continue-on-error: true
         env:
           # Required for normal runs
-          REQUIRED_SECRETS: "OPENAI_API_KEY,GOOGLE_SERVICE_ACCOUNT_JSON,RAW_FOLDER_ID,EDITS_FOLDER_ID"
+          REQUIRED_SECRETS: "OPENAI_API_KEY,GOOGLE_SERVICE_ACCOUNT_JSON,RAW_FOLDER_ID,EDITS_FOLDER_ID,SERVICE_PUBLIC_ID,SERVICE_SECRET_KEY"
           # Optional (Discord webhook + X/Twitter creds)
           OPTIONAL_SECRETS: "WEBHOOK_URL,TWITTER_API_KEY,TWITTER_API_SECRET,TWITTER_ACCESS_TOKEN,X_ACCESS_TOKEN_SECRET"
           # Map from repo/org secrets (support GOOGLE_* -> RAW_/EDITS_ fallback)
@@ -33,6 +33,8 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID || secrets.GOOGLE_RAW_FOLDER_ID }}
           EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID || secrets.GOOGLE_EDITS_FOLDER_ID }}
+          SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
+          SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
           # Expose GOOGLE_* explicitly (useful for debugging)
           GOOGLE_RAW_FOLDER_ID: ${{ secrets.GOOGLE_RAW_FOLDER_ID }}
           GOOGLE_EDITS_FOLDER_ID: ${{ secrets.GOOGLE_EDITS_FOLDER_ID }}
