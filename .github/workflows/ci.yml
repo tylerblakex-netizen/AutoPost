@@ -14,9 +14,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
-      SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

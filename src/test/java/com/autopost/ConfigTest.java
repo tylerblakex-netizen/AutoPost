@@ -18,24 +18,10 @@ public class ConfigTest {
   }
   
   @Test
-  void loadsServiceCredentialsFromSystemProperties() {
-    System.setProperty("OPENAI_API_KEY", "test");
-    System.setProperty("RAW_FOLDER_ID", "raw");
-    System.setProperty("EDITS_FOLDER_ID", "edits");
-    System.setProperty("SERVICE_PUBLIC_ID", "public");
-    System.setProperty("SERVICE_SECRET_KEY", "secret");
-    Config cfg = Config.loadFromSystemProperties();
-    assertEquals("public", cfg.servicePublicId());
-    assertEquals("secret", cfg.serviceSecretKey());
-  }
-  
-  @Test
   void loadsConfigFromSystemPropertiesWithDefaults() {
     System.setProperty("OPENAI_API_KEY", "test-key");
     System.setProperty("RAW_FOLDER_ID", "raw-folder");
     System.setProperty("EDITS_FOLDER_ID", "edits-folder");
-    System.setProperty("SERVICE_PUBLIC_ID", "test-public");
-    System.setProperty("SERVICE_SECRET_KEY", "test-secret");
     // Don't set OPENAI_MODEL to test default value
     System.clearProperty("OPENAI_MODEL");
     
@@ -44,14 +30,10 @@ public class ConfigTest {
     assertEquals("gpt-4o-mini", cfg.openaiModel()); // Should use default
     assertEquals("raw-folder", cfg.rawFolderId());
     assertEquals("edits-folder", cfg.editsFolderId());
-    assertEquals("test-public", cfg.servicePublicId());
-    assertEquals("test-secret", cfg.serviceSecretKey());
   }
   
   @Test
   void throwsExceptionWhenRequiredSystemPropertyMissing() {
-    System.clearProperty("SERVICE_PUBLIC_ID");
-    System.clearProperty("SERVICE_SECRET_KEY");
     System.clearProperty("OPENAI_API_KEY");
     System.clearProperty("RAW_FOLDER_ID");
     System.clearProperty("EDITS_FOLDER_ID");
@@ -64,8 +46,6 @@ public class ConfigTest {
     System.setProperty("OPENAI_API_KEY", "test-key");
     System.setProperty("RAW_FOLDER_ID", "raw-folder");
     System.setProperty("EDITS_FOLDER_ID", "edits-folder");
-    System.setProperty("SERVICE_PUBLIC_ID", "test-public");
-    System.setProperty("SERVICE_SECRET_KEY", "test-secret");
     System.setProperty("X_ACCESS_TOKEN_SECRET", "test-access-secret");
     
     Config cfg = Config.loadFromSystemProperties();
@@ -77,8 +57,6 @@ public class ConfigTest {
     System.setProperty("OPENAI_API_KEY", "test");
     System.setProperty("RAW_FOLDER_ID", "raw");
     System.setProperty("EDITS_FOLDER_ID", "edits");
-    System.setProperty("SERVICE_PUBLIC_ID", "public");
-    System.setProperty("SERVICE_SECRET_KEY", "secret");
     // Don't set GOOGLE_SERVICE_ACCOUNT_JSON - should default to empty
     
     Config cfg = Config.loadFromSystemProperties();
@@ -90,8 +68,6 @@ public class ConfigTest {
     System.setProperty("OPENAI_API_KEY", "test");
     System.setProperty("RAW_FOLDER_ID", "raw");
     System.setProperty("EDITS_FOLDER_ID", "edits");
-    System.setProperty("SERVICE_PUBLIC_ID", "public");
-    System.setProperty("SERVICE_SECRET_KEY", "secret");
     System.setProperty("GOOGLE_SERVICE_ACCOUNT_JSON", "   ");
     
     Config cfg = Config.loadFromSystemProperties();
@@ -103,8 +79,6 @@ public class ConfigTest {
     System.setProperty("OPENAI_API_KEY", "test");
     System.setProperty("RAW_FOLDER_ID", "raw");
     System.setProperty("EDITS_FOLDER_ID", "edits");
-    System.setProperty("SERVICE_PUBLIC_ID", "public");
-    System.setProperty("SERVICE_SECRET_KEY", "secret");
     System.setProperty("GOOGLE_SERVICE_ACCOUNT_JSON", "invalid json content");
     
     Config cfg = Config.loadFromSystemProperties();
@@ -117,8 +91,6 @@ public class ConfigTest {
     System.setProperty("OPENAI_API_KEY", "test");
     System.setProperty("RAW_FOLDER_ID", "raw");
     System.setProperty("EDITS_FOLDER_ID", "edits");
-    System.setProperty("SERVICE_PUBLIC_ID", "public");
-    System.setProperty("SERVICE_SECRET_KEY", "secret");
     System.setProperty("GOOGLE_SERVICE_ACCOUNT_JSON", "{\"key\": \"value\"");  // missing closing brace
     
     Config cfg = Config.loadFromSystemProperties();
@@ -131,8 +103,6 @@ public class ConfigTest {
     System.setProperty("OPENAI_API_KEY", "test");
     System.setProperty("RAW_FOLDER_ID", "raw");
     System.setProperty("EDITS_FOLDER_ID", "edits");
-    System.setProperty("SERVICE_PUBLIC_ID", "public");
-    System.setProperty("SERVICE_SECRET_KEY", "secret");
     System.setProperty("GOOGLE_SERVICE_ACCOUNT_JSON", "{\"type\": \"service_account\", \"project_id\": \"test\"}");
     
     Config cfg = Config.loadFromSystemProperties();
@@ -144,8 +114,6 @@ public class ConfigTest {
     System.setProperty("OPENAI_API_KEY", "test");
     System.setProperty("RAW_FOLDER_ID", "raw");
     System.setProperty("EDITS_FOLDER_ID", "edits");
-    System.setProperty("SERVICE_PUBLIC_ID", "public");
-    System.setProperty("SERVICE_SECRET_KEY", "secret");
     // Simulated Google service account JSON structure
     String validJson = "{"
         + "\"type\": \"service_account\","
@@ -171,14 +139,14 @@ public class ConfigTest {
     Config cfg = new Config(
         "test-key", "gpt-4o-mini", "raw", "edits", "", "", 
         "{\"type\": \"service_account\"}", // valid JSON
-        "", "", "", "", "public", "secret"
+        "", "", "", ""
     );
     assertTrue(cfg.hasInlineSA());
     
     Config cfg2 = new Config(
         "test-key", "gpt-4o-mini", "raw", "edits", "", "", 
         "invalid json", // invalid JSON
-        "", "", "", "", "public", "secret"
+        "", "", "", ""
     );
     RuntimeException exception = assertThrows(RuntimeException.class, cfg2::hasInlineSA);
     assertEquals("GOOGLE_SERVICE_ACCOUNT_JSON contains invalid JSON format", exception.getMessage());
