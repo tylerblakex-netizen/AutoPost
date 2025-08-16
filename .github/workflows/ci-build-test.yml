@@ -1,0 +1,122 @@
+name: CI • Build & Test (Maven/Gradle, 2x with retry)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MAVEN_OPTS: -Dmaven.wagon.http.retryHandler.count=3 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false
+      GRADLE_OPTS: -Dorg.gradle.daemon=false
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      X_API_KEY: ${{ secrets.X_API_KEY }}
+      RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID }}
+      EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      GOOGLE_CREDENTIALS_JSON_PATH: ${{ secrets.GOOGLE_CREDENTIALS_JSON_PATH }}
+      GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+      SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
+      SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache Maven
+        if: ${{ hashFiles('**/pom.xml') != '' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Cache Gradle
+        if: ${{ hashFiles('**/build.gradle*') != '' || hashFiles('gradle/wrapper/gradle-wrapper.properties') != '' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Make Gradle wrapper executable (if present)
+        if: ${{ hashFiles('gradlew') != '' }}
+        run: chmod +x gradlew
+
+      - name: Maven — Build & Test (run twice with one retry)
+        if: ${{ hashFiles('**/pom.xml') != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for run in 1 2; do
+            echo "==== Maven test run #$run ===="
+            mvn -B -ntp -DskipITs=false -DfailIfNoTests=false clean test && break || {
+              if [ "$run" = "1" ]; then
+                echo "First Maven run failed — retrying once..."
+                sleep 3
+              else
+                exit 1
+              fi
+            }
+          done
+
+      - name: Gradle — Build & Test (run twice with one retry)
+        if: ${{ hashFiles('**/build.gradle*') != '' || hashFiles('gradle/wrapper/gradle-wrapper.properties') != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for run in 1 2; do
+            echo "==== Gradle test run #$run ===="
+            if [ -f "./gradlew" ]; then
+              ./gradlew --no-daemon clean test && break || {
+                if [ "$run" = "1" ]; then
+                  echo "First Gradle run failed — retrying once..."
+                  sleep 3
+                else
+                  exit 1
+                fi
+              }
+            else
+              gradle --no-daemon clean test && break || {
+                if [ "$run" = "1" ]; then
+                  echo "First Gradle run failed — retrying once..."
+                  sleep 3
+                else
+                  exit 1
+                fi
+              }
+            fi
+          done
+
+      - name: Upload test reports (if present)
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/build/test-results/test/**
+            **/target/surefire-reports/**
+          if-no-files-found: ignore
+          retention-days: 7

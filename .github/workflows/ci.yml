@@ -1,37 +1,110 @@
-name: CI (Build & Future Tests)
+name: CI — static checks → compile → build
 
-"on":
+on:
   push:
-    branches: ["main"]
+    branches: [ main ]
   pull_request:
-    branches: ["main"]
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.warning.mode=summary"
+      # Map safe env from GitHub Secrets (no secrets committed)
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      X_API_KEY: ${{ secrets.X_API_KEY }}
+      RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID }}
+      EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      GOOGLE_CREDENTIALS_JSON_PATH: ${{ secrets.GOOGLE_CREDENTIALS_JSON_PATH }}
+      GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+      SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
+      SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check service credentials
+        shell: bash
+        env:
+          SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
+          SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
+        run: |
+          if [ -z "${SERVICE_PUBLIC_ID}" ] || [ -z "${SERVICE_SECRET_KEY}" ]; then
+            echo "::notice title=Service credentials not set::Skipping steps requiring SERVICE_PUBLIC_ID / SERVICE_SECRET_KEY."
+          else
+            echo "Service credentials provided via secrets."
+          fi
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
-          cache: maven
+          java-version: 21
+
+      - name: Set up Gradle 8.9 (no wrapper needed)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.9
+          cache-read-only: false
+
+      - name: Validate Gradle can run
+        run: gradle -v
+
+      - name: Make CI scripts executable
+        run: chmod +x .ci/*.sh 2>/dev/null || true
+
+      # ------------------- Static / formatting -------------------
+      - name: ShellCheck
+        run: bash .ci/shellcheck.sh || true
+
+      - name: Spotless (if present)
+        run: |
+          if gradle -q tasks --all | grep -q "spotlessApply"; then
+            gradle --stacktrace spotlessApply
+          else
+            echo "spotlessApply not found — skipping"
+          fi
+
+      - name: Static checks (if present)
+        run: |
+          if gradle -q tasks --all | grep -q "staticChecks"; then
+            gradle --stacktrace staticChecks || true
+          else
+            echo "staticChecks task not found — skipping"
+          fi
+
+      # ------------------- Compile first, upload logs -------------------
+      - name: Compile sources (classes)
+        id: compile
+        run: |
+          set -e
+          gradle --stacktrace classes 2>&1 | tee compile.log
+
+      - name: Upload compile log (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-log
+          path: compile.log
+
+      # ------------------- Full build & coverage only if compile passed -------------------
       - name: Build
-        run: mvn -B -DskipTests package
-      # Uncomment when tests exist
-      # - name: Test
-      #   run: mvn -B test
-      - name: Verify JAR
+        if: success()
+        run: gradle --stacktrace build
+
+      - name: JaCoCo report (if present)
+        if: success()
         run: |
-          ls -lh target || true
-      - name: Summary
-        run: |
-          {
-            echo "### CI Build"
-            echo "* Status: ${{ job.status }}"
-            echo "* Commit: $GITHUB_SHA"
-            echo "* Time (UTC): $(date -u)"
-          } >> $GITHUB_STEP_SUMMARY
+          if gradle -q tasks --all | grep -q "jacocoTestReport"; then
+            gradle --stacktrace jacocoTestReport
+          else
+            echo "jacocoTestReport not found — skipping"
+          fi

@@ -1,0 +1,55 @@
+name: Build & Checks
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CI_STRICT: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx2g -XX:+UseG1GC"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: Notice (SERVICE_* no longer required)
+        shell: bash
+        env:
+          SERVICE_PUBLIC_ID: ${{ vars.SERVICE_PUBLIC_ID }}
+          SERVICE_SECRET_KEY: ${{ vars.SERVICE_SECRET_KEY }}
+        run: |
+          if [ -z "${SERVICE_PUBLIC_ID}" ] || [ -z "${SERVICE_SECRET_KEY}" ]; then
+            echo "::notice title=Service credentials not set::Skipping any steps that need SERVICE_PUBLIC_ID / SERVICE_SECRET_KEY."
+          else
+            echo "Service credentials provided via repo Variables."
+          fi
+
+      - name: Build + Static checks + Coverage
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
+      - run: ./gradlew --no-daemon --stacktrace staticChecks build jacocoTestReport
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            **/build/reports/**
+            **/build/test-results/**
+

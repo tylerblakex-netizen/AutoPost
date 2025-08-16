@@ -1,12 +1,54 @@
-target/
+# Gradle
+.gradle/
+build/
+out/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ / Eclipse / VS Code
 .idea/
 *.iml
-.vscode/
-.classpath
 .project
+.classpath
 .settings/
+.vscode/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Env / secrets
 .env
-sa.json
+.env.*
+!.env.example
+
+# Logs
 *.log
-dependency-reduced-pom.xml
+# env & secrets
+.env
+.env.local
+*.pem
+*.keystore
+
+# build outputs
+/build/
+/target/
+/.gradle/
+/.mvn/
+
+# node
+/node_modules/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+
+# Local env + credentials
+.env
+*.pem
+*.p12
+*.keystore
+*.jks
+*credentials*.json
+**/application-*.local.properties
+**/secrets/*.*
