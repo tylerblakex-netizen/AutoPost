@@ -1,5 +1,7 @@
 plugins {
     java
+    id("org.springframework.boot") version "3.2.5"
+    id("io.spring.dependency-management") version "1.1.4"
     jacoco
     checkstyle
     pmd
@@ -21,8 +23,24 @@ repositories {
 }
 
 dependencies {
-    // TODO: Add real deps here as compile errors appear in CI (implementation("group:artifact:version"))
-    testImplementation(platform("org.junit:junit-bom:5.10.3"))
+    // Spring Boot core + web (safe to include; resolves @SpringBootApplication and web imports)
+    implementation("org.springframework.boot:spring-boot-starter")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+
+    // Google API client stack (HTTP + JSON + OAuth helpers)
+    implementation("com.google.api-client:google-api-client:2.6.0")
+    implementation("com.google.http-client:google-http-client-gson:1.43.3")
+    // OkHttp for HTTP requests
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Twitter4J for X/Twitter interactions
+    implementation("org.twitter4j:twitter4j-core:4.0.7")
+
+    // If code imports com.google.api.services.drive.Drive, include Drive service:
+    implementation("com.google.apis:google-api-services-drive:v3-rev20230815-2.0.0")
+
+    // Testing
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
 
