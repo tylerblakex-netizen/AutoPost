@@ -23,3 +23,22 @@ Thumbs.db
 
 # Logs
 *.log
+# env & secrets
+.env
+.env.local
+*.pem
+*.keystore
+
+# build outputs
+/build/
+/target/
+/.gradle/
+/.mvn/
+
+# node
+/node_modules/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
