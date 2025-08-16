@@ -42,3 +42,13 @@ Thumbs.db
 .idea/
 .vscode/
 .DS_Store
+
+# Local env + credentials
+.env
+*.pem
+*.p12
+*.keystore
+*.jks
+*credentials*.json
+**/application-*.local.properties
+**/secrets/*.*

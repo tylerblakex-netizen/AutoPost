@@ -15,3 +15,11 @@ This project previously required `SERVICE_PUBLIC_ID` and `SERVICE_SECRET_KEY`. T
 - CI/CD never requires them.
 - If you add repo **Variables** with those names, deploy/integration steps will auto-enable.
 - If omitted, those steps skip and the app runs with a no-op client.
+
+## Build & Test (no secrets required)
+```bash
+cp .env.example .env    # then edit if you want to run real integrations
+./gradlew clean build   # compiles + unit tests
+```
+
+Integration tests that hit Google APIs are skipped unless GOOGLE_API_KEY (and related vars) are set.

@@ -1,0 +1,30 @@
+name: Auto PR on Branch Push
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create/Update PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref_name }}
+          base: main
+          title: "Auto PR: ${{ github.ref_name }}"
+          body: |
+            Auto-generated PR from branch **${{ github.ref_name }}**.
+            Add the label **automerge** or comment `/ship` to auto-merge when CI is green.
+          draft: false
+          labels: |
+            needs-review
