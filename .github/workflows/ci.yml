@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build_and_test:
-    name: Build & Test (auto Maven/Gradle; robust detection)
+    name: Build & Test (auto Maven/Gradle; verbose)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,6 +19,7 @@ jobs:
       - name: Detect build tool
         id: detect
         run: |
+          set -e
           if [ -f "pom.xml" ]; then
             echo "tool=maven" >> "$GITHUB_OUTPUT"
           elif [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
@@ -27,8 +28,13 @@ jobs:
             echo "❌ No pom.xml or build.gradle(.kts) found at repo root."
             exit 1
           fi
+          echo "Detected tool: $(cat $GITHUB_OUTPUT)"
+          echo "=== Repo root ==="
+          pwd
+          echo "=== Files ==="
+          ls -la
 
-      # Set up JDK 21 with the RIGHT cache, only after detection
+      # Set up JDK 21 with the right cache AFTER detection
       - name: Set up JDK 21 (Maven)
         if: steps.detect.outputs.tool == 'maven'
         uses: actions/setup-java@v4
@@ -45,34 +51,51 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Ensure Gradle available (only if Gradle)
+      - name: Gradle prep (ensure CLI/wrapper)
         if: steps.detect.outputs.tool == 'gradle'
         run: |
+          set -e
           if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
             echo "Using Gradle wrapper."
+            chmod +x ./gradlew
+            ./gradlew --version
           else
             echo "No gradle wrapper found; installing Gradle CLI."
             sudo apt-get update -y
             sudo apt-get install -y gradle
             gradle --version
           fi
+          echo "=== Show top of build file ==="
+          head -n 120 build.gradle* || true
+
+      - name: Gradle diagnostics (tasks + dependency tree)
+        if: steps.detect.outputs.tool == 'gradle'
+        run: |
+          set -e
+          if [ -f "./gradlew" ]; then
+            ./gradlew --no-daemon tasks --all || true
+            ./gradlew --no-daemon dependencies --configuration runtimeClasspath || true
+          else
+            gradle --no-daemon tasks --all || true
+            gradle --no-daemon dependencies --configuration runtimeClasspath || true
+          fi
 
       - name: Build (Maven)
         if: steps.detect.outputs.tool == 'maven'
         run: |
-          mvn -B -ntp -Dstyle.color=always test
+          mvn -B -ntp -Dstyle.color=always -e -X test
           mvn -B -ntp -Dstyle.color=always -DskipTests package
 
-      - name: Build (Gradle)
+      - name: Build (Gradle) — full logs
         if: steps.detect.outputs.tool == 'gradle'
         run: |
+          set -e
           if [ -f "./gradlew" ]; then
-            ./gradlew --no-daemon test
-            ./gradlew --no-daemon assemble
+            ./gradlew --no-daemon --stacktrace --info test
+            ./gradlew --no-daemon --stacktrace --info assemble
           else
-            gradle --no-daemon test
-            gradle --no-daemon assemble
+            gradle --no-daemon --stacktrace --info test
+            gradle --no-daemon --stacktrace --info assemble
           fi
 
       - name: Upload test reports (if present)
