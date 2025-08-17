@@ -1,110 +1,97 @@
-name: CI — static checks → compile → build
+name: CI
 
 on:
   push:
     branches: [ main ]
+    tags: [ v* ]
   pull_request:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  ci:
+  build_and_test:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
     env:
-      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.warning.mode=summary"
-      # Map safe env from GitHub Secrets (no secrets committed)
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      X_API_KEY: ${{ secrets.X_API_KEY }}
-      RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID }}
-      EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID }}
-      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-      GOOGLE_CREDENTIALS_JSON_PATH: ${{ secrets.GOOGLE_CREDENTIALS_JSON_PATH }}
-      GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-      SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
-      SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
-
+      # Safer JVM settings; no weird --args misuse
+      GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Check service credentials
-        shell: bash
-        env:
-          SERVICE_PUBLIC_ID: ${{ secrets.SERVICE_PUBLIC_ID }}
-          SERVICE_SECRET_KEY: ${{ secrets.SERVICE_SECRET_KEY }}
-        run: |
-          if [ -z "${SERVICE_PUBLIC_ID}" ] || [ -z "${SERVICE_SECRET_KEY}" ]; then
-            echo "::notice title=Service credentials not set::Skipping steps requiring SERVICE_PUBLIC_ID / SERVICE_SECRET_KEY."
-          else
-            echo "Service credentials provided via secrets."
-          fi
-
-      - name: Set up JDK 21
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: '21'
+          cache: gradle
 
-      - name: Set up Gradle 8.9 (no wrapper needed)
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: 8.9
-          cache-read-only: false
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Validate Gradle can run
-        run: gradle -v
+      - name: Build + Test
+        run: ./gradlew --no-daemon clean test
 
-      - name: Make CI scripts executable
-        run: chmod +x .ci/*.sh 2>/dev/null || true
-
-      # ------------------- Static / formatting -------------------
-      - name: ShellCheck
-        run: bash .ci/shellcheck.sh || true
-
-      - name: Spotless (if present)
-        run: |
-          if gradle -q tasks --all | grep -q "spotlessApply"; then
-            gradle --stacktrace spotlessApply
-          else
-            echo "spotlessApply not found — skipping"
-          fi
-
-      - name: Static checks (if present)
-        run: |
-          if gradle -q tasks --all | grep -q "staticChecks"; then
-            gradle --stacktrace staticChecks || true
-          else
-            echo "staticChecks task not found — skipping"
-          fi
-
-      # ------------------- Compile first, upload logs -------------------
-      - name: Compile sources (classes)
-        id: compile
-        run: |
-          set -e
-          gradle --stacktrace classes 2>&1 | tee compile.log
-
-      - name: Upload compile log (always)
+      - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: compile-log
-          path: compile.log
+          name: test-reports
+          path: build/reports/tests
 
-      # ------------------- Full build & coverage only if compile passed -------------------
-      - name: Build
-        if: success()
-        run: gradle --stacktrace build
+  integration_smoke:
+    # Run only if ALL required secrets exist (JSON + both folder IDs)
+    if: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON != '' && secrets.GDRIVE_PARENT_ID_RAW != '' && secrets.GDRIVE_PARENT_ID_EDITS != '' }}
+    runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
+      # Read IDs **from secrets** only
+      GDRIVE_PARENT_ID_RAW: ${{ secrets.GDRIVE_PARENT_ID_RAW }}
+      GDRIVE_PARENT_ID_EDITS: ${{ secrets.GDRIVE_PARENT_ID_EDITS }}
+      AUTOMATION_DRY_RUN: 1
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: JaCoCo report (if present)
-        if: success()
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Generate synthetic video (2s)
+        run: >
+          ffmpeg -f lavfi -i smptebars=s=1280x720:d=2
+          -f lavfi -i sine=f=1000:duration=2
+          -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/synth.mp4
+
+      - name: Write service account JSON (secret → temp file)
         run: |
-          if gradle -q tasks --all | grep -q "jacocoTestReport"; then
-            gradle --stacktrace jacocoTestReport
-          else
-            echo "jacocoTestReport not found — skipping"
-          fi
+          sa_file="$(mktemp /tmp/gdrive-sa.XXXXXX.json)"
+          printf '%s' "${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}" > "$sa_file"
+          echo "GDRIVE_SERVICE_ACCOUNT_FILE=$sa_file" >> $GITHUB_ENV
+
+      - name: Preflight (don’t print values)
+        run: |
+          [ -n "$GDRIVE_PARENT_ID_RAW" ] && echo "RAW ID present" || (echo "RAW ID missing"; exit 1)
+          [ -n "$GDRIVE_PARENT_ID_EDITS" ] && echo "EDITS ID present" || (echo "EDITS ID missing"; exit 1)
+          [ -f "$GDRIVE_SERVICE_ACCOUNT_FILE" ] && echo "SA file present" || (echo "SA file missing"; exit 1)
+
+      # If you don't have an integrationTest task yet, change to a safe command or add the task.
+      - name: Run integration smoke
+        run: ./gradlew --no-daemon test
+
+      - name: Upload smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-logs
+          path: |
+            build/logs
+            build/reports/tests
