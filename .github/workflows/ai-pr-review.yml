@@ -1,0 +1,43 @@
+name: AI PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          git diff --unified=0 origin/${{ github.base_ref }}...HEAD > diff.txt
+      - id: ai
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          BODY=$(jq -Rs '.' diff.txt)
+          JSON=$(jq -n --arg body "$BODY" '{
+            model:"gpt-5-thinking",
+            messages:[
+              {role:"system",content:"You are an expert CI reviewer. Be concise."},
+              {role:"user",content:"Summarize intent, list risks/breaking changes/security/privacy, and concrete fixes. Max 2500 chars.\n\nDiff:\n"+$body}
+            ],
+            temperature:0.2
+          }')
+          RESP=$(curl -sS https://api.openai.com/v1/chat/completions \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$JSON")
+          echo "comment<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESP" | jq -r '.choices[0].message.content' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      - uses: actions-ecosystem/action-create-comment@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          number: ${{ github.event.pull_request.number }}
+          body: ${{ steps.ai.outputs.comment }}
