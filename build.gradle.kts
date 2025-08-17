@@ -1,41 +1,63 @@
 plugins {
-    id("java")
-    id("application")
+    java
 }
 
-group = "com.example.autopost"
-version = "1.0.0"
-
 repositories {
-    mavenCentral()  // Explained: Pins to mavenCentral for reproducibility.
+    mavenCentral()
 }
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))  // Explained: Enforces Java 21; code is compatible.
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
 dependencies {
-    implementation("com.google.api-client:google-api-client:2.2.0")  // Explained: For Google Drive; version pinned.
-    implementation("com.google.apis:google-api-services-drive:v3-rev20230814-2.0.0")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")  // Explained: Adds JUnit 5 for tests.
+    // JUnit 5 for unit tests
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
-    // Assume existing deps for FFmpeg or MoviePy wrappers; add if needed.
-}
-
-application {
-    mainClass.set("com.example.autopost.Main")  // Explained: Assumes entrypoint; preserve existing.
 }
 
 tasks.test {
-    useJUnitPlatform()  // Explained: Enables JUnit 5.
-    systemProperty("org.gradle.jvmargs", "-Xmx2g -XX:+HeapDumpOnOutOfMemoryError")  // Explained: JVM args for stability.
+    useJUnitPlatform()
 }
 
-gradleEnterprise {
-    buildScan {
-        termsOfServiceUrl = "https://gradle.com/terms-of-service"
-        termsOfServiceAgree = "yes"
+/**
+ * Lightweight integrationTest source set
+ * - Runs only in CI's integration job
+ * - Test can skip itself if secrets/env are not present
+ */
+sourceSets {
+    create("integrationTest") {
+        java.srcDir("src/integrationTest/java")
+        resources.srcDir("src/integrationTest/resources")
+        compileClasspath += sourceSets["main"].output + configurations.testRuntimeClasspath
+        runtimeClasspath += output + compileClasspath
     }
-}  // Explained: Enables build cache if using Gradle Enterprise; otherwise, local cache works.
+}
+
+configurations {
+    val integrationTestImplementation by creating {
+        extendsFrom(configurations.testImplementation.get())
+    }
+    val integrationTestRuntimeOnly by creating {
+        extendsFrom(configurations.testRuntimeOnly.get())
+    }
+}
+
+dependencies {
+    add("integrationTestImplementation", "org.junit.jupiter:junit-jupiter:5.10.0")
+    add("integrationTestRuntimeOnly", "org.junit.jupiter:junit-jupiter-engine:5.10.0")
+}
+
+tasks.register<Test>("integrationTest") {
+    description = "Runs integration smoke tests"
+    group = "verification"
+    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    useJUnitPlatform()
+    // Keep memory sane on CI
+    jvmArgs("-Xmx1g")
+    // Show skipped tests too
+    reports.html.required.set(true)
+}
