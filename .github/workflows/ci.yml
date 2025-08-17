@@ -10,34 +10,34 @@ permissions:
 
 jobs:
   build_and_test:
-    name: Build & Test (auto-detect Maven/Gradle)
+    name: Build & Test (auto Maven/Gradle; robust detection)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Detect build tool
+        id: detect
+        run: |
+          if [ -f "pom.xml" ]; then
+            echo "tool=maven" >> "$GITHUB_OUTPUT"
+          elif [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+            echo "tool=gradle" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ No pom.xml or build.gradle(.kts) found at repo root."
+            exit 1
+          fi
+
+      # Set up JDK 21 with the RIGHT cache, only after detection
+      - name: Set up JDK 21 (Maven)
+        if: steps.detect.outputs.tool == 'maven'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      - name: Detect build tool
-        id: detect
-        run: |
-          if [ -f "pom.xml" ]; then
-            echo "tool=maven" >> $GITHUB_OUTPUT
-          elif [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
-            echo "tool=gradle" >> $GITHUB_OUTPUT
-          else
-            echo "No pom.xml or build.gradle(.kts) found."
-            exit 1
-          fi
-          echo "Detected: $(cat $GITHUB_OUTPUT)"
-
-      - name: Switch cache to Gradle (if needed)
+      - name: Set up JDK 21 (Gradle)
         if: steps.detect.outputs.tool == 'gradle'
         uses: actions/setup-java@v4
         with:
@@ -45,13 +45,14 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Ensure Gradle available
+      - name: Ensure Gradle available (only if Gradle)
         if: steps.detect.outputs.tool == 'gradle'
         run: |
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
             echo "Using Gradle wrapper."
           else
+            echo "No gradle wrapper found; installing Gradle CLI."
             sudo apt-get update -y
             sudo apt-get install -y gradle
             gradle --version
