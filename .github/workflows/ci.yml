@@ -35,30 +35,30 @@ jobs:
       - name: Ensure gradlew is executable
         run: chmod +x ./gradlew
 
-      - name: Build + Unit tests
-        run: ./gradlew --no-daemon clean test
+      - name: Build + Unit tests (verbose)
+        run: ./gradlew --no-daemon clean test -i --stacktrace
 
-      - name: Upload test reports
+      - name: Upload test reports (whatever exists)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-reports
           path: |
-            build/reports/tests/test
-            build/test-results/test
+            **/build/reports/tests/**/*
+            **/build/test-results/**/*
 
   integration_smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      # compute once; use to gate steps
+      # Gate steps instead of the job to avoid YAML expression drama
       RUN_INTEGRATION: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON && secrets.GDRIVE_PARENT_ID_RAW && secrets.GDRIVE_PARENT_ID_EDITS }}
       GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
       GDRIVE_PARENT_ID_RAW: ${{ secrets.GDRIVE_PARENT_ID_RAW }}
       GDRIVE_PARENT_ID_EDITS: ${{ secrets.GDRIVE_PARENT_ID_EDITS }}
       AUTOMATION_DRY_RUN: 1
     steps:
-      - name: Note if we’re skipping
+      - name: Integration decision
         run: |
           if [ "${{ env.RUN_INTEGRATION }}" != "true" ]; then
             echo "Skipping integration: missing secrets"
@@ -67,7 +67,7 @@ jobs:
           fi
 
       - uses: actions/checkout@v4
-        if: ${{ env.RUN_INTEGRRATION == 'true' || env.RUN_INTEGRATION == 'true' }}  # safety if you typo once
+        if: ${{ env.RUN_INTEGRATION == 'true' }}
 
       - name: Set up Java (Temurin 21) + Gradle cache
         if: ${{ env.RUN_INTEGRATION == 'true' }}
@@ -101,7 +101,7 @@ jobs:
 
       - name: Run integration smoke
         if: ${{ env.RUN_INTEGRATION == 'true' }}
-        run: ./gradlew --no-daemon integrationTest || ./gradlew --no-daemon test
+        run: ./gradlew --no-daemon integrationTest -i --stacktrace || ./gradlew --no-daemon test -i --stacktrace
 
       - name: Upload smoke reports
         if: ${{ always() && env.RUN_INTEGRATION == 'true' }}
@@ -109,39 +109,5 @@ jobs:
         with:
           name: integration-reports
           path: |
-            build/reports/tests/integrationTest
-            build/test-results/integrationTest
-            build/reports/tests/test
-            build/test-results/test
-
-  release_on_tag:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build_and_test]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Java (Temurin 21) + Gradle cache
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: gradle
-
-      - name: Ensure gradlew is executable
-        run: chmod +x ./gradlew
-
-      - name: Build
-        run: ./gradlew --no-daemon build
-
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
+            **/build/reports/tests/**/*
+            **/build/test-results/**/*
