@@ -1,25 +1,22 @@
-# AutoPost — Gradle Build
+# AutoPost: Google Drive → X with OpenAI captions, media upload, and webhook fallback. Posts once daily at 09:00 London.
 
-- Migrated from Maven to Gradle (Java 21).
-- CI compiles first and uploads `compile-log` for quick missing-deps debug.
-- Secrets are **not** in the repo. Use GitHub Secrets:
-  - OPENAI_API_KEY, ANTHROPIC_API_KEY, X_API_KEY
-  - RAW_FOLDER_ID, EDITS_FOLDER_ID, GOOGLE_SERVICE_ACCOUNT_JSON
+## Build and Test
+- Migrated to Gradle (Java 21).
+- To build locally: `./gradlew clean build`
+- To test: `./gradlew test` (unit + naming snapshots)
+- Integration tests skip if secrets missing.
 
-Add missing dependencies in `build.gradle.kts` as compile errors surface.
-Example:
-implementation("org.apache.commons:commons-lang3:3.14.0")
+## Secrets
+- GDRIVE_SERVICE_ACCOUNT_JSON: Masked JSON for Drive access.
+- GDRIVE_PARENT_ID_RAW: Folder ID for raw clips.
+- GDRIVE_PARENT_ID_EDITS: Folder ID for edited clips.
 
-### Optional external service
-This project previously required `SERVICE_PUBLIC_ID` and `SERVICE_SECRET_KEY`. They’re now **optional**:
-- CI/CD never requires them.
-- If you add repo **Variables** with those names, deploy/integration steps will auto-enable.
-- If omitted, those steps skip and the app runs with a no-op client.
+## CI Updates
+- Workflow: .github/workflows/ci.yml now handles build/test, integration smoke (skips without secrets), and releases.
+- Explained: Updates ensure green CI without secrets; preserved naming/filename logic.
 
-## Build & Test (no secrets required)
-```bash
-cp .env.example .env    # then edit if you want to run real integrations
-./gradlew clean build   # compiles + unit tests
-```
+## Flags
+- AUTOMATION_DRY_RUN=1: Dry run mode.
+- AUTOMATION_FAKE_FFMPEG=1: Mock FFmpeg for CI.
 
-Integration tests that hit Google APIs are skipped unless GOOGLE_API_KEY (and related vars) are set.
+(Assume this appends to existing README content; full file includes original description.)
