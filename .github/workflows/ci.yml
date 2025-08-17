@@ -1,22 +1,18 @@
 name: CI
 on:
-  push:
-    branches: [ main ]
+  push: { branches: [ main ] }
   pull_request:
 
-permissions:
-  contents: read
+permissions: { contents: read }
 
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
-    name: Build & Test (auto Maven/Gradle; cache off; robust tasks)
+    name: Build & Test (Gradle or Maven)
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # 1) Detect build tool early so we pick the right path
       - name: Detect build tool
         id: detect
         run: |
@@ -29,14 +25,11 @@ jobs:
             exit 1
           fi
 
-      # ---------- Maven path ----------
+      # Maven path
       - name: Set up JDK 21 (Maven)
         if: steps.detect.outputs.tool == 'maven'
         uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
+        with: { distribution: temurin, java-version: '21', cache: maven }
 
       - name: Build (Maven)
         if: steps.detect.outputs.tool == 'maven'
@@ -44,69 +37,55 @@ jobs:
           mvn -B -ntp -Dstyle.color=always test
           mvn -B -ntp -Dstyle.color=always -DskipTests package
 
-      # ---------- Gradle path ----------
+      # Gradle path (no wrapper needed)
       - name: Set up JDK 21 (Gradle)
         if: steps.detect.outputs.tool == 'gradle'
         uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          # IMPORTANT: don't use setup-java's Gradle caching when using setup-gradle
-          # (and we’re disabling Gradle caching below anyway).  [oai_citation:3‡community.gradle.org](https://community.gradle.org/github-actions/docs/setup-gradle/)
+        with: { distribution: temurin, java-version: '21' }
 
-      - name: Set up Gradle 8.9 (cache disabled to dodge GitHub cache outage)
+      - name: Set up Gradle 8.9 (cache disabled)
         if: steps.detect.outputs.tool == 'gradle'
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-          cache-disabled: true  # turn off all cache saves/reads while GitHub cache is flaky.  [oai_citation:4‡community.gradle.org](https://community.gradle.org/github-actions/docs/setup-gradle/)
+          cache-disabled: true
 
-      - name: Gradle env & task scan
+      - name: Gradle task scan
         if: steps.detect.outputs.tool == 'gradle'
-        id: gradle_env
+        id: g
         shell: bash
         run: |
-          set -e
-          BIN="gradle"
-          if [ -f "./gradlew" ]; then chmod +x ./gradlew; BIN="./gradlew"; fi
+          BIN="gradle"; [ -f "./gradlew" ] && chmod +x ./gradlew && BIN="./gradlew"
           echo "bin=$BIN" >> "$GITHUB_OUTPUT"
-
-          # List tasks once and parse
           $BIN --no-daemon --console=plain tasks --all > tasks.txt || true
           awk '/ - / {print $1}' tasks.txt | sort -u > tasks_only.txt || true
-
-          for t in test integrationTest assemble build; do
-            if grep -xq "$t" tasks_only.txt; then
-              echo "has_$t=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "has_$t=false" >> "$GITHUB_OUTPUT"
-            fi
+          for t in test integrationTest build assemble; do
+            if grep -xq "$t" tasks_only.txt; then echo "has_$t=true" >> "$GITHUB_OUTPUT"; else echo "has_$t=false" >> "$GITHUB_OUTPUT"; fi
           done
-
           $BIN --version
 
-      - name: Run unit tests (Gradle)
-        if: steps.detect.outputs.tool == 'gradle' && steps.gradle_env.outputs.has_test == 'true'
-        run: ${{ steps.gradle_env.outputs.bin }} --no-daemon --stacktrace --info test
+      - name: Run unit tests
+        if: steps.detect.outputs.tool == 'gradle' && steps.g.outputs.has_test == 'true'
+        run: ${{ steps.g.outputs.bin }} --no-daemon --stacktrace --info test
 
-      - name: Run integration tests (Gradle)
-        if: steps.detect.outputs.tool == 'gradle' && steps.gradle_env.outputs.has_integrationTest == 'true'
-        run: ${{ steps.gradle_env.outputs.bin }} --no-daemon --stacktrace --info integrationTest
+      - name: Run integration tests
+        if: steps.detect.outputs.tool == 'gradle' && steps.g.outputs.has_integrationTest == 'true'
+        run: ${{ steps.g.outputs.bin }} --no-daemon --stacktrace --info integrationTest
 
-      - name: Assemble/Build (Gradle - pick what exists)
+      - name: Build or Assemble
         if: steps.detect.outputs.tool == 'gradle'
         shell: bash
         run: |
-          BIN="${{ steps.gradle_env.outputs.bin }}"
-          if [ "${{ steps.gradle_env.outputs.has_assemble }}" = "true" ]; then
-            $BIN --no-daemon --stacktrace --info assemble
-          elif [ "${{ steps.gradle_env.outputs.has_build }}" = "true" ]; then
+          BIN="${{ steps.g.outputs.bin }}"
+          if [ "${{ steps.g.outputs.has_build }}" = "true" ]; then
             $BIN --no-daemon --stacktrace --info build
+          elif [ "${{ steps.g.outputs.has_assemble }}" = "true" ]; then
+            $BIN --no-daemon --stacktrace --info assemble
           else
-            echo "❌ Neither 'assemble' nor 'build' task exists."; exit 1
+            echo "❌ Neither 'build' nor 'assemble' exists"; exit 1
           fi
 
-      - name: Upload test reports (if present)
+      - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
