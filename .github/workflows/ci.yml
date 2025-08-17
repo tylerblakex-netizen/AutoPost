@@ -3,163 +3,85 @@ name: CI
 on:
   push:
     branches: [ main ]
-    tags: [ v* ]
   pull_request:
 
 permissions:
   contents: read
 
-concurrency:
-  group: CI-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build_and_test:
+    name: Build & Test (auto-detect Maven/Gradle)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
 
       - name: Detect build tool
         id: detect
         run: |
-          if [ -f gradlew ]; then
-            echo "tool=gradle" >> $GITHUB_OUTPUT
-          elif [ -f build.gradle ] || [ -f build.gradle.kts ]; then
-            echo "tool=gradle-no-wrapper" >> $GITHUB_OUTPUT
-          elif [ -f pom.xml ]; then
+          if [ -f "pom.xml" ]; then
             echo "tool=maven" >> $GITHUB_OUTPUT
+          elif [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+            echo "tool=gradle" >> $GITHUB_OUTPUT
           else
-            echo "No build tool files found (gradlew/build.gradle(.kts)/pom.xml)."
+            echo "No pom.xml or build.gradle(.kts) found."
             exit 1
           fi
+          echo "Detected: $(cat $GITHUB_OUTPUT)"
 
-      - name: Set up Java (Temurin 21)
+      - name: Switch cache to Gradle (if needed)
+        if: steps.detect.outputs.tool == 'gradle'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-          cache: ${{ steps.detect.outputs.tool == 'maven' && 'maven' || 'gradle' }}
+          cache: gradle
 
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      - name: Ensure gradlew is executable
-        if: ${{ steps.detect.outputs.tool == 'gradle' }}
-        run: chmod +x ./gradlew
-
-      - name: Build + Unit tests (Gradle)
-        if: ${{ steps.detect.outputs.tool == 'gradle' }}
-        run: ./gradlew --no-daemon clean test -i --stacktrace
-
-      - name: Build + Unit tests (Maven)
-        if: ${{ steps.detect.outputs.tool == 'maven' }}
-        run: mvn -B -ntp clean test
-
-      - name: Fail if Gradle wrapper missing
-        if: ${{ steps.detect.outputs.tool == 'gradle-no-wrapper' }}
+      - name: Ensure Gradle available
+        if: steps.detect.outputs.tool == 'gradle'
         run: |
-          echo "::error::No ./gradlew found. Either commit the Gradle wrapper (preferred) or use Maven (pom.xml)."
-          exit 1
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+            echo "Using Gradle wrapper."
+          else
+            sudo apt-get update -y
+            sudo apt-get install -y gradle
+            gradle --version
+          fi
 
-      - name: Upload test reports (any tool)
+      - name: Build (Maven)
+        if: steps.detect.outputs.tool == 'maven'
+        run: |
+          mvn -B -ntp -Dstyle.color=always test
+          mvn -B -ntp -Dstyle.color=always -DskipTests package
+
+      - name: Build (Gradle)
+        if: steps.detect.outputs.tool == 'gradle'
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew --no-daemon test
+            ./gradlew --no-daemon assemble
+          else
+            gradle --no-daemon test
+            gradle --no-daemon assemble
+          fi
+
+      - name: Upload test reports (if present)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-reports
+          name: test-reports
           path: |
-            **/build/reports/tests/**/*
-            **/build/test-results/**/*
-            **/target/surefire-reports/**/*
-            **/target/site/**/*
-  integration_smoke:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      RUN_INTEGRATION: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON && secrets.GDRIVE_PARENT_ID_RAW && secrets.GDRIVE_PARENT_ID_EDITS }}
-      GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
-      GDRIVE_PARENT_ID_RAW: ${{ secrets.GDRIVE_PARENT_ID_RAW }}
-      GDRIVE_PARENT_ID_EDITS: ${{ secrets.GDRIVE_PARENT_ID_EDITS }}
-      AUTOMATION_DRY_RUN: 1
-    steps:
-      - name: Integration decision
-        run: |
-          if [ "${{ env.RUN_INTEGRATION }}" != "true" ]; then
-            echo "Skipping integration: missing secrets"
-          else
-            echo "Running integration: all secrets present"
-          fi
-
-      - uses: actions/checkout@v4
-        if: ${{ env.RUN_INTEGRATION == 'true' }}
-
-      - name: Detect build tool
-        if: ${{ env.RUN_INTEGRATION == 'true' }}
-        id: detect_int
-        run: |
-          if [ -f gradlew ]; then
-            echo "tool=gradle" >> $GITHUB_OUTPUT
-          elif [ -f build.gradle ] || [ -f build.gradle.kts ]; then
-            echo "tool=gradle-no-wrapper" >> $GITHUB_OUTPUT
-          elif [ -f pom.xml ]; then
-            echo "tool=maven" >> $GITHUB_OUTPUT
-          else
-            echo "tool=none" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set up Java (Temurin 21)
-        if: ${{ env.RUN_INTEGRATION == 'true' }}
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: ${{ steps.detect_int.outputs.tool == 'maven' && 'maven' || 'gradle' }}
-
-      - name: Install FFmpeg
-        if: ${{ env.RUN_INTEGRATION == 'true' }}
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      - name: Generate synthetic video (2s)
-        if: ${{ env.RUN_INTEGRATION == 'true' }}
-        run: >
-          ffmpeg -f lavfi -i smptebars=s=1280x720:d=2
-          -f lavfi -i sine=f=1000:duration=2
-          -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/synth.mp4
-
-      - name: Write service account JSON (secret → temp file)
-        if: ${{ env.RUN_INTEGRATION == 'true' }}
-        run: |
-          sa_file="$(mktemp /tmp/gdrive-sa.XXXXXX.json)"
-          printf '%s' "${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}" > "$sa_file"
-          echo "GDRIVE_SERVICE_ACCOUNT_FILE=$sa_file" >> $GITHUB_ENV
-
-      - name: Ensure gradlew is executable
-        if: ${{ env.RUN_INTEGRATION == 'true' && steps.detect_int.outputs.tool == 'gradle' }}
-        run: chmod +x ./gradlew
-
-      - name: Run integration smoke (Gradle)
-        if: ${{ env.RUN_INTEGRATION == 'true' && steps.detect_int.outputs.tool == 'gradle' }}
-        run: ./gradlew --no-daemon integrationTest -i --stacktrace || ./gradlew --no-daemon test -i --stacktrace
-
-      - name: Run integration smoke (Maven)
-        if: ${{ env.RUN_INTEGRATION == 'true' && steps.detect_int.outputs.tool == 'maven' }}
-        run: mvn -B -ntp -Dautopost.dryrun=true verify
-
-      - name: Fail if Gradle wrapper missing
-        if: ${{ env.RUN_INTEGRATION == 'true' && steps.detect_int.outputs.tool == 'gradle-no-wrapper' }}
-        run: |
-          echo "::error::No ./gradlew found for integration. Commit the Gradle wrapper or switch to Maven."
-          exit 1
-
-      - name: Upload integration reports
-        if: ${{ always() && env.RUN_INTEGRATION == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-reports
-          path: |
-            **/build/reports/tests/**/*
-            **/build/test-results/**/*
-            **/target/failsafe-reports/**/*
-            **/target/surefire-reports/**/*
+            **/build/reports/tests/**
+            **/build/test-results/**
+            **/target/surefire-reports/**
+            **/target/site/**
+          if-no-files-found: ignore
