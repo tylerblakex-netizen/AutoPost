@@ -10,18 +10,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: CI-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up Java (Temurin 21) + Gradle cache
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -34,22 +35,23 @@ jobs:
       - name: Ensure gradlew is executable
         run: chmod +x ./gradlew
 
-      - name: Build + unit tests
+      - name: Build + Unit tests
         run: ./gradlew --no-daemon clean test
 
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports
+          name: unit-test-reports
           path: |
             build/reports/tests/test
             build/test-results/test
 
   integration_smoke:
-    # only runs if ALL required secrets exist; otherwise SKIPPED (CI stays green)
+    # Only runs when ALL required secrets exist; otherwise it is skipped (keeps CI green)
     if: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON != '' && secrets.GDRIVE_PARENT_ID_RAW != '' && secrets.GDRIVE_PARENT_ID_EDITS != '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
       GDRIVE_PARENT_ID_RAW: ${{ secrets.GDRIVE_PARENT_ID_RAW }}
@@ -58,6 +60,80 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up Java (Temurin 21) + Gradle cache
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Generate synthetic video (2s)
+        run: >
+          ffmpeg -f lavfi -i smptebars=s=1280x720:d=2
+          -f lavfi -i sine=f=1000:duration=2
+          -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/synth.mp4
+
+      - name: Write service account JSON (secret → temp file)
+        run: |
+          sa_file="$(mktemp /tmp/gdrive-sa.XXXXXX.json)"
+          printf '%s' "${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}" > "$sa_file"
+          echo "GDRIVE_SERVICE_ACCOUNT_FILE=$sa_file" >> $GITHUB_ENV
+
+      - name: Preflight (don’t print secret values)
+        run: |
+          [ -n "$GDRIVE_PARENT_ID_RAW" ] && echo "RAW ID present" || (echo "RAW ID missing"; exit 1)
+          [ -n "$GDRIVE_PARENT_ID_EDITS" ] && echo "EDITS ID present" || (echo "EDITS ID missing"; exit 1)
+          [ -f "$GDRIVE_SERVICE_ACCOUNT_FILE" ] && echo "SA file present" || (echo "SA file missing"; exit 1)
+
+      - name: Ensure gradlew is executable
+        run: chmod +x ./gradlew
+
+      # Try integrationTest if you added it; otherwise fall back to test
+      - name: Run integration smoke
+        run: ./gradlew --no-daemon integrationTest || ./gradlew --no-daemon test
+
+      - name: Upload smoke reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-reports
+          path: |
+            build/reports/tests/integrationTest
+            build/test-results/integrationTest
+            build/reports/tests/test
+            build/test-results/test
+
+  release_on_tag:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build_and_test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java (Temurin 21) + Gradle cache
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Ensure gradlew is executable
+        run: chmod +x ./gradlew
+
+      - name: Build
+        run: ./gradlew --no-daemon build
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
