@@ -21,23 +21,17 @@ jobs:
       GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Java (Temurin 21) + Gradle cache
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: gradle
-
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
       - name: Ensure gradlew is executable
         run: chmod +x ./gradlew
-
       - name: Build + Unit tests (verbose)
         run: ./gradlew --no-daemon clean test -i --stacktrace
-
       - name: Upload test reports (whatever exists)
         if: always()
         uses: actions/upload-artifact@v4
@@ -51,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      # Gate steps instead of the job to avoid YAML expression drama
+      # Gate steps (NOT the whole job) so YAML never breaks
       RUN_INTEGRATION: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON && secrets.GDRIVE_PARENT_ID_RAW && secrets.GDRIVE_PARENT_ID_EDITS }}
       GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
       GDRIVE_PARENT_ID_RAW: ${{ secrets.GDRIVE_PARENT_ID_RAW }}
@@ -65,44 +59,35 @@ jobs:
           else
             echo "Running integration: all secrets present"
           fi
-
       - uses: actions/checkout@v4
         if: ${{ env.RUN_INTEGRATION == 'true' }}
-
-      - name: Set up Java (Temurin 21) + Gradle cache
+      - uses: actions/setup-java@v4
         if: ${{ env.RUN_INTEGRATION == 'true' }}
-        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: gradle
-
       - name: Install FFmpeg
         if: ${{ env.RUN_INTEGRATION == 'true' }}
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
       - name: Generate synthetic video (2s)
         if: ${{ env.RUN_INTEGRATION == 'true' }}
         run: >
           ffmpeg -f lavfi -i smptebars=s=1280x720:d=2
           -f lavfi -i sine=f=1000:duration=2
           -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac /tmp/synth.mp4
-
       - name: Write service account JSON (secret → temp file)
         if: ${{ env.RUN_INTEGRATION == 'true' }}
         run: |
           sa_file="$(mktemp /tmp/gdrive-sa.XXXXXX.json)"
           printf '%s' "${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}" > "$sa_file"
           echo "GDRIVE_SERVICE_ACCOUNT_FILE=$sa_file" >> $GITHUB_ENV
-
       - name: Ensure gradlew is executable
         if: ${{ env.RUN_INTEGRATION == 'true' }}
         run: chmod +x ./gradlew
-
       - name: Run integration smoke
         if: ${{ env.RUN_INTEGRATION == 'true' }}
         run: ./gradlew --no-daemon integrationTest -i --stacktrace || ./gradlew --no-daemon test -i --stacktrace
-
       - name: Upload smoke reports
         if: ${{ always() && env.RUN_INTEGRATION == 'true' }}
         uses: actions/upload-artifact@v4
