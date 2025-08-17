@@ -20,3 +20,4 @@
 - AUTOMATION_FAKE_FFMPEG=1: Mock FFmpeg for CI.
 
 (Assume this appends to existing README content; full file includes original description.)
+
