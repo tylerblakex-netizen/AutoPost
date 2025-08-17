@@ -17,7 +17,6 @@ jobs:
   build_and_test:
     runs-on: ubuntu-latest
     env:
-      # Safer JVM settings; no weird --args misuse
       GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +31,7 @@ jobs:
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Build + Test
+      - name: Build + Unit tests
         run: ./gradlew --no-daemon clean test
 
       - name: Upload test reports
@@ -43,15 +42,13 @@ jobs:
           path: build/reports/tests
 
   integration_smoke:
-    # Run only if ALL required secrets exist (JSON + both folder IDs)
+    # Runs only when ALL three secrets exist; otherwise skipped (CI still green)
     if: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON != '' && secrets.GDRIVE_PARENT_ID_RAW != '' && secrets.GDRIVE_PARENT_ID_EDITS != '' }}
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"
-      # Read IDs **from secrets** only
       GDRIVE_PARENT_ID_RAW: ${{ secrets.GDRIVE_PARENT_ID_RAW }}
       GDRIVE_PARENT_ID_EDITS: ${{ secrets.GDRIVE_PARENT_ID_EDITS }}
-      AUTOMATION_DRY_RUN: 1
     steps:
       - uses: actions/checkout@v4
 
@@ -77,15 +74,10 @@ jobs:
           printf '%s' "${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}" > "$sa_file"
           echo "GDRIVE_SERVICE_ACCOUNT_FILE=$sa_file" >> $GITHUB_ENV
 
-      - name: Preflight (don’t print values)
-        run: |
-          [ -n "$GDRIVE_PARENT_ID_RAW" ] && echo "RAW ID present" || (echo "RAW ID missing"; exit 1)
-          [ -n "$GDRIVE_PARENT_ID_EDITS" ] && echo "EDITS ID present" || (echo "EDITS ID missing"; exit 1)
-          [ -f "$GDRIVE_SERVICE_ACCOUNT_FILE" ] && echo "SA file present" || (echo "SA file missing"; exit 1)
-
-      # If you don't have an integrationTest task yet, change to a safe command or add the task.
-      - name: Run integration smoke
-        run: ./gradlew --no-daemon test
+      - name: Run integration smoke (auto-skips in code if envs missing)
+        env:
+          GDRIVE_SERVICE_ACCOUNT_FILE: ${{ env.GDRIVE_SERVICE_ACCOUNT_FILE }}
+        run: ./gradlew --no-daemon integrationTest
 
       - name: Upload smoke logs
         if: always()
@@ -93,5 +85,5 @@ jobs:
         with:
           name: integration-logs
           path: |
-            build/logs
-            build/reports/tests
+            build/reports/tests/integrationTest
+            build/test-results/integrationTest
