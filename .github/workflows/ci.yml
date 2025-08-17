@@ -47,8 +47,8 @@ jobs:
             build/reports/tests/test
             build/test-results/test
 
-    integration_smoke:
-    # Only runs when ALL required secrets exist; otherwise skipped
+  integration_smoke:
+    # only runs when ALL three secrets exist; otherwise skipped
     if: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON != '' && secrets.GDRIVE_PARENT_ID_RAW != '' && secrets.GDRIVE_PARENT_ID_EDITS != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -82,16 +82,9 @@ jobs:
           printf '%s' "${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}" > "$sa_file"
           echo "GDRIVE_SERVICE_ACCOUNT_FILE=$sa_file" >> $GITHUB_ENV
 
-      - name: Preflight (don’t print secret values)
-        run: |
-          [ -n "$GDRIVE_PARENT_ID_RAW" ] && echo "RAW ID present" || (echo "RAW ID missing"; exit 1)
-          [ -n "$GDRIVE_PARENT_ID_EDITS" ] && echo "EDITS ID present" || (echo "EDITS ID missing"; exit 1)
-          [ -f "$GDRIVE_SERVICE_ACCOUNT_FILE" ] && echo "SA file present" || (echo "SA file missing"; exit 1)
-
       - name: Ensure gradlew is executable
         run: chmod +x ./gradlew
 
-      # Try integrationTest if you added it; otherwise fall back to test
       - name: Run integration smoke
         run: ./gradlew --no-daemon integrationTest || ./gradlew --no-daemon test
 
