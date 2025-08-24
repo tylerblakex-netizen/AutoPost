@@ -1,0 +1,58 @@
+name: Check environment variables
+
+on:
+  push:
+    paths:
+      - 'scripts/check_env.sh'
+      - '.github/workflows/check-env.yml'
+  pull_request:
+    paths:
+      - 'scripts/check_env.sh'
+      - '.github/workflows/check-env.yml'
+
+jobs:
+  check-env:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Check if core secrets are available
+        id: gate
+        run: |
+          # Check if at least one core secret is available
+          # This prevents failures in fork PRs where secrets aren't accessible
+          if [[ -n "${{ secrets.OPENAI_API_KEY }}" ]] || \
+             [[ -n "${{ secrets.TWITTER_API_KEY }}" ]] || \
+             [[ -n "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" ]] || \
+             [[ -n "${{ vars.OPENAI_API_KEY }}" ]]; then
+            echo "secrets_available=true" >> $GITHUB_OUTPUT
+            echo "Core secrets are available - will run environment check"
+          else
+            echo "secrets_available=false" >> $GITHUB_OUTPUT
+            echo "No core secrets available - skipping environment check (common for fork PRs)"
+          fi
+      
+      - name: Run environment check
+        if: steps.gate.outputs.secrets_available == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || vars.OPENAI_API_KEY }}
+          AUTO_POST_CRON: ${{ secrets.AUTO_POST_CRON || vars.AUTO_POST_CRON }}
+          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY || vars.TWITTER_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET || vars.TWITTER_API_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN || vars.TWITTER_ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET || vars.TWITTER_ACCESS_SECRET }}
+          GOOGLE_RAW_FOLDER_ID: ${{ secrets.GOOGLE_RAW_FOLDER_ID || vars.GOOGLE_RAW_FOLDER_ID }}
+          RAW_FOLDER_ID: ${{ secrets.RAW_FOLDER_ID || vars.RAW_FOLDER_ID }}
+          GOOGLE_EDITS_FOLDER_ID: ${{ secrets.GOOGLE_EDITS_FOLDER_ID || vars.GOOGLE_EDITS_FOLDER_ID }}
+          EDITS_FOLDER_ID: ${{ secrets.EDITS_FOLDER_ID || vars.EDITS_FOLDER_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON || vars.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: bash scripts/check_env.sh
+      
+      - name: Skip message
+        if: steps.gate.outputs.secrets_available == 'false'
+        run: |
+          echo "🔒 Skipping environment check because secrets are not available in this context."
+          echo "This is normal for pull requests from forks."
+          echo "The environment check will run when secrets are properly configured."
